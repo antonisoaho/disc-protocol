@@ -3,6 +3,7 @@ import type { RoundDoc } from '@core/domain/round'
 import {
   computeHeadToHeadSummary,
   computeParticipantParSummary,
+  listParticipantPlayedCourses,
   listParticipantRoundDeltasChronological,
 } from '@core/domain/roundAnalytics'
 
@@ -187,5 +188,225 @@ describe('listParticipantRoundDeltasChronological', () => {
       { roundId: 'b', dateMs: 200, totalDelta: 0, scoredHoles: 1 },
       { roundId: 'c', dateMs: 300, totalDelta: 2, scoredHoles: 1 },
     ])
+  })
+
+  it('filters by courseKey when provided', () => {
+    const scored = (uid: string) => ({
+      [uid]: { '1': scoreEntry(3, 3, uid) },
+    })
+    const items = [
+      {
+        id: 'a',
+        data: makeRound({
+          startedAt: { toMillis: () => 100 } as RoundDoc['startedAt'],
+          courseId: 'course-1',
+          courseName: 'Maple Hill',
+          participantHoleScores: scored('me'),
+        }),
+      },
+      {
+        id: 'b',
+        data: makeRound({
+          startedAt: { toMillis: () => 200 } as RoundDoc['startedAt'],
+          courseId: 'course-2',
+          courseName: 'De Laveaga',
+          participantHoleScores: scored('me'),
+        }),
+      },
+    ]
+
+    expect(
+      listParticipantRoundDeltasChronological(items, 'me', { courseKey: 'catalog:course-1' }),
+    ).toEqual([{ roundId: 'a', dateMs: 100, totalDelta: 0, scoredHoles: 1 }])
+  })
+
+  it('returns empty when courseKey matches no rounds', () => {
+    const items = [
+      {
+        id: 'a',
+        data: makeRound({
+          courseId: 'course-1',
+          startedAt: { toMillis: () => 100 } as RoundDoc['startedAt'],
+          participantHoleScores: { me: { '1': scoreEntry(3, 3, 'me') } },
+        }),
+      },
+    ]
+    expect(
+      listParticipantRoundDeltasChronological(items, 'me', { courseKey: 'catalog:other' }),
+    ).toEqual([])
+  })
+})
+
+describe('listParticipantPlayedCourses', () => {
+  it('returns an empty list when there are no rounds', () => {
+    expect(listParticipantPlayedCourses([], 'me')).toEqual([])
+  })
+
+  it('only includes courses with completed, scored rounds for the participant', () => {
+    const items = [
+      {
+        id: 'incomplete',
+        data: makeRound({
+          completedAt: null,
+          courseId: 'course-skip',
+          courseName: 'Skip me',
+          participantHoleScores: { me: { '1': scoreEntry(3, 3, 'me') } },
+        }),
+      },
+      {
+        id: 'no-score',
+        data: makeRound({
+          courseId: 'course-empty',
+          courseName: 'No score',
+          participantHoleScores: {},
+        }),
+      },
+      {
+        id: 'friend-only',
+        data: makeRound({
+          courseId: 'course-friend',
+          courseName: 'Friend only',
+          participantIds: ['me', 'friend'],
+          participantHoleScores: { friend: { '1': scoreEntry(3, 3, 'friend') } },
+        }),
+      },
+      {
+        id: 'good',
+        data: makeRound({
+          courseId: 'course-good',
+          courseName: 'Good course',
+          participantHoleScores: { me: { '1': scoreEntry(3, 3, 'me') } },
+        }),
+      },
+    ]
+    expect(listParticipantPlayedCourses(items, 'me')).toEqual([
+      { key: 'catalog:course-good', label: 'Good course', source: 'catalog' },
+    ])
+  })
+
+  it('groups catalog rounds by courseId and falls back to courseId when name is missing', () => {
+    const items = [
+      {
+        id: 'a',
+        data: makeRound({
+          courseId: 'course-1',
+          courseName: 'Maple Hill',
+          participantHoleScores: { me: { '1': scoreEntry(3, 3, 'me') } },
+        }),
+      },
+      {
+        id: 'b',
+        data: makeRound({
+          courseId: 'course-1',
+          courseName: 'Maple Hill',
+          participantHoleScores: { me: { '1': scoreEntry(4, 3, 'me') } },
+        }),
+      },
+      {
+        id: 'c',
+        data: makeRound({
+          courseId: 'course-2',
+          courseName: null,
+          participantHoleScores: { me: { '1': scoreEntry(3, 3, 'me') } },
+        }),
+      },
+    ]
+    expect(listParticipantPlayedCourses(items, 'me')).toEqual([
+      { key: 'catalog:course-2', label: 'course-2', source: 'catalog' },
+      { key: 'catalog:course-1', label: 'Maple Hill', source: 'catalog' },
+    ])
+  })
+
+  it('groups fresh rounds by normalized draft name', () => {
+    const items = [
+      {
+        id: 'a',
+        data: makeRound({
+          courseId: 'round-a',
+          courseSource: 'fresh',
+          courseDraft: { name: '  Backyard Loop  ', holes: [] },
+          participantHoleScores: { me: { '1': scoreEntry(3, 3, 'me') } },
+        }),
+      },
+      {
+        id: 'b',
+        data: makeRound({
+          courseId: 'round-b',
+          courseSource: 'fresh',
+          courseDraft: { name: 'backyard loop', holes: [] },
+          participantHoleScores: { me: { '1': scoreEntry(4, 3, 'me') } },
+        }),
+      },
+      {
+        id: 'c',
+        data: makeRound({
+          courseId: 'round-c',
+          courseSource: 'fresh',
+          courseDraft: { name: 'Riverside', holes: [] },
+          participantHoleScores: { me: { '1': scoreEntry(3, 3, 'me') } },
+        }),
+      },
+    ]
+    expect(listParticipantPlayedCourses(items, 'me')).toEqual([
+      { key: 'fresh:backyard loop', label: 'Backyard Loop', source: 'fresh' },
+      { key: 'fresh:riverside', label: 'Riverside', source: 'fresh' },
+    ])
+  })
+
+  it('folds promoted-fresh rounds into the catalog course group', () => {
+    const items = [
+      {
+        id: 'a',
+        data: makeRound({
+          courseId: 'round-a',
+          courseSource: 'fresh',
+          courseDraft: { name: 'Promoted Park', holes: [] },
+          coursePromotion: { status: 'created', targetCourseId: 'course-promoted' },
+          participantHoleScores: { me: { '1': scoreEntry(3, 3, 'me') } },
+        }),
+      },
+      {
+        id: 'b',
+        data: makeRound({
+          courseId: 'course-promoted',
+          courseName: 'Promoted Park',
+          participantHoleScores: { me: { '1': scoreEntry(4, 3, 'me') } },
+        }),
+      },
+    ]
+    expect(listParticipantPlayedCourses(items, 'me')).toEqual([
+      { key: 'catalog:course-promoted', label: 'Promoted Park', source: 'catalog' },
+    ])
+  })
+
+  it('sorts results alphabetically by label, case-insensitive', () => {
+    const items = [
+      {
+        id: 'a',
+        data: makeRound({
+          courseId: 'course-a',
+          courseName: 'Zen Gardens',
+          participantHoleScores: { me: { '1': scoreEntry(3, 3, 'me') } },
+        }),
+      },
+      {
+        id: 'b',
+        data: makeRound({
+          courseId: 'course-b',
+          courseName: 'aardvark Falls',
+          participantHoleScores: { me: { '1': scoreEntry(3, 3, 'me') } },
+        }),
+      },
+      {
+        id: 'c',
+        data: makeRound({
+          courseId: 'course-c',
+          courseName: 'Maple Hill',
+          participantHoleScores: { me: { '1': scoreEntry(3, 3, 'me') } },
+        }),
+      },
+    ]
+    const labels = listParticipantPlayedCourses(items, 'me').map((c) => c.label)
+    expect(labels).toEqual(['aardvark Falls', 'Maple Hill', 'Zen Gardens'])
   })
 })
