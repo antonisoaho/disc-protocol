@@ -12,6 +12,43 @@ export type RoundDeltaSample = {
   scoredHoles: number
 }
 
+export type PlayedCourse = {
+  /** Stable grouping key: `catalog:<courseId>` or `fresh:<normalized name>`. */
+  key: string
+  /** Human-readable label captured from the first round in the group. */
+  label: string
+  source: 'catalog' | 'fresh'
+}
+
+export type ListParticipantRoundDeltasOptions = {
+  /** Restrict samples to rounds whose course key matches. */
+  courseKey?: string
+}
+
+function deriveCourseGrouping(round: RoundDoc): PlayedCourse {
+  const isFresh = round.courseSource === 'fresh'
+  const promotedTarget = round.coursePromotion?.targetCourseId ?? null
+  if (isFresh && !promotedTarget) {
+    const rawName = round.courseDraft?.name ?? ''
+    const trimmed = rawName.trim()
+    return {
+      key: `fresh:${trimmed.toLowerCase()}`,
+      label: trimmed || round.courseId,
+      source: 'fresh',
+    }
+  }
+  const catalogId = promotedTarget ?? round.courseId
+  const label =
+    round.courseName?.trim() ||
+    round.courseDraft?.name?.trim() ||
+    catalogId
+  return {
+    key: `catalog:${catalogId}`,
+    label,
+    source: 'catalog',
+  }
+}
+
 function startedAtToMs(startedAt: Timestamp | null | undefined): number {
   if (!startedAt || typeof startedAt.toMillis !== 'function') {
     return 0
@@ -30,10 +67,15 @@ function startedAtToMs(startedAt: Timestamp | null | undefined): number {
 export function listParticipantRoundDeltasChronological(
   items: IdRound[],
   participantUid: string,
+  options?: ListParticipantRoundDeltasOptions,
 ): RoundDeltaSample[] {
+  const courseKey = options?.courseKey
   const rows: RoundDeltaSample[] = []
   for (const { id, data } of items) {
     if (!isCompletedRound(data) || !data.participantIds.includes(participantUid)) {
+      continue
+    }
+    if (courseKey && deriveCourseGrouping(data).key !== courseKey) {
       continue
     }
     const participantRound = aggregateParticipantRound(data, participantUid)
@@ -49,6 +91,34 @@ export function listParticipantRoundDeltasChronological(
   }
   rows.sort((a, b) => a.dateMs - b.dateMs)
   return rows
+}
+
+/**
+ * Distinct courses the participant has a completed, scored round on.
+ * Catalog rounds (and promoted-fresh rounds with a target course) group by `courseId`;
+ * unpromoted fresh rounds group by normalized draft name. Output is sorted by label.
+ */
+export function listParticipantPlayedCourses(
+  items: IdRound[],
+  participantUid: string,
+): PlayedCourse[] {
+  const groups = new Map<string, PlayedCourse>()
+  for (const { data } of items) {
+    if (!isCompletedRound(data) || !data.participantIds.includes(participantUid)) {
+      continue
+    }
+    const participantRound = aggregateParticipantRound(data, participantUid)
+    if (participantRound.scoredHoles === 0) {
+      continue
+    }
+    const grouping = deriveCourseGrouping(data)
+    if (!groups.has(grouping.key)) {
+      groups.set(grouping.key, grouping)
+    }
+  }
+  return [...groups.values()].sort((a, b) =>
+    a.label.toLowerCase().localeCompare(b.label.toLowerCase()),
+  )
 }
 
 type ParticipantAggregate = {

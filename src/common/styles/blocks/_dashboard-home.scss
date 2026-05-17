@@ -20,6 +20,33 @@
   font-size: 0.9rem;
 }
 
+.dashboard-home__course-filter {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+}
+
+.dashboard-home__course-filter-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.dashboard-home__course-filter-select {
+  width: 100%;
+  min-height: $touch-target-comfortable;
+  padding: $space-2 $space-3;
+  border: 1px solid var(--border);
+  border-radius: $radius-sm;
+  background: var(--surface-bg);
+  color: var(--text);
+  font-size: 0.95rem;
+
+  &:focus-visible {
+    outline: 2px solid map.get($score-color, eagle);
+    outline-offset: 2px;
+  }
+}
+
 .dashboard-home__stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

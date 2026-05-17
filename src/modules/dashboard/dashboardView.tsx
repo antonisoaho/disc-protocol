@@ -1,13 +1,19 @@
 import type { User } from 'firebase/auth'
 import type { Timestamp } from 'firebase/firestore'
-import { useEffect, useMemo, useReducer } from 'react'
+import { useEffect, useMemo, useReducer, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { computeHeadToHeadSummary, listParticipantRoundDeltasChronological } from '@core/domain/roundAnalytics'
+import {
+  computeHeadToHeadSummary,
+  listParticipantPlayedCourses,
+  listParticipantRoundDeltasChronological,
+} from '@core/domain/roundAnalytics'
 import { subscribeMyRounds, type RoundListItem } from '@core/domain/rounds'
 import { subscribeUserDirectory, type UserDirectoryEntry } from '@core/users/userDirectory'
 import { translateUserError } from '@common/i18n/translateError'
 import { DeltaAreaChart } from '@modules/dashboard/components/DeltaAreaChart'
+
+const ALL_COURSES_KEY = '__all__'
 
 type Props = {
   viewer: User
@@ -94,7 +100,21 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
     return profileUid
   }, [directoryEntries, profileUid, readOnly, viewer.displayName, viewer.email, viewer.uid])
 
-  const trend = listParticipantRoundDeltasChronological(items, profileUid)
+  const playedCourses = useMemo(
+    () => listParticipantPlayedCourses(items, profileUid),
+    [items, profileUid],
+  )
+  const [courseFilter, setCourseFilter] = useState<string>(ALL_COURSES_KEY)
+  const activeCourseKey =
+    courseFilter !== ALL_COURSES_KEY && playedCourses.some((c) => c.key === courseFilter)
+      ? courseFilter
+      : null
+
+  const trend = listParticipantRoundDeltasChronological(
+    items,
+    profileUid,
+    activeCourseKey ? { courseKey: activeCourseKey } : undefined,
+  )
   const deltas = trend.map((row) => row.totalDelta)
   const stats =
     deltas.length === 0
@@ -125,6 +145,31 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
         <p className="dashboard-home__error" role="alert">
           {loadError}
         </p>
+      ) : null}
+
+      {playedCourses.length > 0 ? (
+        <div className="dashboard-home__course-filter">
+          <label
+            className="dashboard-home__course-filter-label"
+            htmlFor="dashboard-course-filter"
+          >
+            {t('dashboard.courseFilterLabel')}
+          </label>
+          <select
+            id="dashboard-course-filter"
+            className="dashboard-home__course-filter-select"
+            value={courseFilter}
+            onChange={(e) => setCourseFilter(e.target.value)}
+            aria-label={t('dashboard.courseFilterAria')}
+          >
+            <option value={ALL_COURSES_KEY}>{t('dashboard.courseFilterAll')}</option>
+            {playedCourses.map((course) => (
+              <option key={course.key} value={course.key}>
+                {course.label}
+              </option>
+            ))}
+          </select>
+        </div>
       ) : null}
 
       <div className="dashboard-home__stats" role="group" aria-label={t('dashboard.statsAria')}>
