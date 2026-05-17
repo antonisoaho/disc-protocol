@@ -705,3 +705,21 @@ export function subscribeMyRounds(
     onError,
   )
 }
+
+export function subscribeRound(
+  roundId: string,
+  onNext: (item: RoundListItem | null) => void,
+  onError?: (e: FirestoreError) => void,
+): Unsubscribe {
+  return onSnapshot(
+    doc(db, ROUNDS, roundId),
+    (snap) => {
+      if (!snap.exists()) {
+        onNext(null)
+        return
+      }
+      onNext({ id: snap.id, data: snap.data() as RoundDoc })
+    },
+    onError,
+  )
+}
