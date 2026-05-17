@@ -454,6 +454,10 @@ export const commonEn = {
     scorecard: {
       backHome: '← Back to dashboard',
       notFoundOrNoAccess: 'This round is not available. It may have been removed or you may not be a participant.',
+      readOnlyTitle: 'Scorecard · {{courseName}}',
+      readOnlyMetaStarted: 'Started {{startedAt}}',
+      readOnlyMetaCompleted: 'Started {{startedAt}} · Completed {{completedAt}}',
+      readOnlyTotalsAria: 'Player totals for this round',
     },
   },
   players: {

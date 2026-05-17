@@ -455,6 +455,10 @@ export const commonSv = {
     scorecard: {
       backHome: '← Tillbaka till översikten',
       notFoundOrNoAccess: 'Rundan finns inte. Den kan ha tagits bort eller så är du inte deltagare.',
+      readOnlyTitle: 'Scorekort · {{courseName}}',
+      readOnlyMetaStarted: 'Startade {{startedAt}}',
+      readOnlyMetaCompleted: 'Startade {{startedAt}} · Slutförd {{completedAt}}',
+      readOnlyTotalsAria: 'Spelartotaler för rundan',
     },
   },
   players: {

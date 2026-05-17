@@ -531,6 +531,36 @@
   margin: 0 0 $space-2;
 }
 
+.scoring-panel__read-only-totals {
+  list-style: none;
+  margin: $space-3 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+}
+
+.scoring-panel__read-only-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: $space-3;
+  padding: $space-2 $space-3;
+  border: 1px solid var(--border);
+  border-radius: $radius-sm;
+  background: var(--surface-bg);
+}
+
+.scoring-panel__read-only-total-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.scoring-panel__read-only-total-value {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
 .scoring-panel__player-rows {
   display: flex;
   flex-direction: column;
