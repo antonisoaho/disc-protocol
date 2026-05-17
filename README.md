@@ -1,27 +1,28 @@
 # disc-protocol
 
-**Mobile-first disc golf social web app** (React + Vite, Firebase, PWA). Product direction and data design live in **`docs/architecture.md`**. The **Planner** works in the main clone; **Workers** implement in **git worktrees** (see `.cursorrules`).
+**Mobile-first disc golf social web app** (React + Vite, Firebase, PWA). Product direction and data design live in **`docs/architecture.md`**. Contributor workflow lives in [`.cursorrules`](.cursorrules) and the mirrored [`.claude/REPOSITORY_RULES.md`](.claude/REPOSITORY_RULES.md).
 
 ## Prerequisites
 
 - **Git** and GitHub remote **`origin`**
 - **GitHub CLI**: [https://cli.github.com](https://cli.github.com) — `gh auth login`
-- **Python 3.10+** (stdlib only for orchestration scripts)
 - **Node.js** + npm (see `package.json`)
+- **Python 3.10+** (optional; only needed if you use `orchestrator.py` for batch issue ops — `gh` works for everything)
 
 ## Workflow
 
 ```text
-Plan → Issue → Worktree → Rebase main → PR → Review → Fix → Merge → Cleanup
+Issue → Branch → TDD → Rebase main → Verify → PR → Review → Merge → Cleanup
 ```
 
-1. **Plan** — Planner breaks work into issues with acceptance criteria (no feature code in main workspace per `.cursorrules`).
-2. **Issue** — Track on GitHub (`orchestrator.py` or `gh`).
-3. **Worktree** — `python3 scripts/agent_worker.py <N>` → `../worktrees/issue-<N>/`, branch `issue/<N>`.
-4. **Sync with `main` before PR** — In the worktree: `git fetch origin`, then **`git rebase origin/main`** (resolve conflicts, rerun lint/build). If rebase is not allowed for your team, merge **`origin/main`** into the branch instead; default is **rebase**.
-5. **PR** — Push and open a pull request only after the branch is up to date with `main`.
-6. **Review, fix, merge** — By default the **Planner** drives this with `gh`: inspect diffs and checks, structured review (security, architecture fit, CI, obvious bugs), **fix** what is needed (push to the PR branch when possible), then **`gh pr merge`** when satisfied. Formal **`gh pr review --approve`** is **not** required for the Planner role. The human maintainer is optional unless branch protection or permissions block merge (see `.cursorrules`).
-7. **Cleanup (always)** — after merge **or abandon**, run `python3 scripts/cleanup.py <N>` to delete `../worktrees/issue-<N>/` and prune stale worktree records. If merged, fetch/update `main` in the planner clone before cleanup.
+1. **Issue** — `gh issue create` with title, motivation, scope, and acceptance criteria.
+2. **Branch** — `git checkout -b issue/<N> origin/main`. Work directly on the branch — no worktree.
+3. **TDD** — Red → Green → Refactor with Vitest for changes under `src/` (see [`.claude/rules/tdd-vitest.md`](.claude/rules/tdd-vitest.md)).
+4. **Rebase** — `git fetch origin && git rebase origin/main`; resolve conflicts.
+5. **Verify (hard rule)** — `npm run lint`, `npm run test`, `npm run build`, `npm run verify:doctor` must all pass; fix any major doctor findings.
+6. **PR** — `git push -u origin issue/<N>` then `gh pr create`. Link the issue (`Closes #<N>`).
+7. **Review and merge** — `gh pr checks`, structured review (security, fit with `docs/architecture.md`, obvious bugs), then `gh pr merge` once green. Surface explicit blockers if branch protection rejects the merge.
+8. **Cleanup** — `git checkout main && git pull origin main && git branch -d issue/<N>`.
 
 All orchestration docs and comments are in **English**.
 
@@ -68,23 +69,15 @@ gh secret set FIREBASE_SERVICE_ACCOUNT < path/to/serviceAccount.json
 
 | Script | Purpose |
 |--------|---------|
-| `orchestrator.py` | `gh` helper: `create`, `list`, `show`, `track` |
-| `scripts/agent_worker.py` | New worktree + branch for issue **N** |
-| `scripts/cleanup.py` | Remove issue worktree + local branch; safe-by-default checks, `--dry-run` preview, `--force` override |
+| `orchestrator.py` | Optional `gh` helper: `create`, `list`, `show`, `track` |
 
 ### Examples
 
 ```bash
 python3 orchestrator.py create --title "Task" --body "Acceptance: …"
 python3 orchestrator.py track
-
-python3 scripts/agent_worker.py 12
-cd ../worktrees/issue-12
-
-python3 scripts/cleanup.py 12
 ```
 
-- Worktree path: `<parent-of-repo>/worktrees/issue-<N>/`
 - Branch: `issue/<N>`
 
 ## Styling

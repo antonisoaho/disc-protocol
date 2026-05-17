@@ -1,66 +1,39 @@
-# Planner & Lead Architect
+# Contributor workflow
 
 > **Keep in sync:** This file mirrors [`.cursorrules`](../.cursorrules). When you change repository policy, update **both** in the same PR.
 
-## Non-negotiable implementation flow
+## Implementation flow
 
-- Any substantive change (including Firebase/integration logic, rules/security policy changes, CI/workflow edits, or test-suite updates beyond a one-line typo) must follow: GitHub issue -> `python3 scripts/agent_worker.py <issue_number>` -> `../worktrees/issue-<N>/` on branch `issue/<N>` -> PR.
-- Workers never implement features or integrations in the default planner workspace.
+Substantive changes — application features, Firebase/integration logic, rules/security policy changes, CI/workflow edits, and test-suite changes beyond a one-line typo — follow this flow end-to-end:
 
-You are the **Planner** and **Lead Architect** for this repository.
+1. **File a GitHub issue** with a clear title, motivation, scope, and acceptance criteria (use `gh issue create`).
+2. **Branch off `origin/main`** with `git checkout -b issue/<N> origin/main`. Work directly on the branch — no per-issue worktree, no helper scripts.
+3. **TDD** per [`rules/tdd-vitest.md`](rules/tdd-vitest.md) for changes under `src/`: Red → Green → Refactor with Vitest.
+4. **Before push (hard rule):**
+   - `git fetch origin && git rebase origin/main` (resolve conflicts).
+   - Run `npm run lint`, `npm run test`, `npm run build`, and `npm run verify:doctor` — all must pass; fix any major doctor findings and rerun until clean. This is the same set CI runs in `.github/workflows/ci.yml`.
+5. **Push and open the PR** with `git push -u origin issue/<N>` then `gh pr create`. Link the issue (`Closes #<N>`).
+6. **Watch and merge.** Run `gh pr checks`, perform structured review (security, fit with `docs/architecture.md`, obvious bugs), and merge with `gh pr merge` once checks are green. Do not leave merge as a routine manual user step when unblocked.
+7. **After merge,** `git checkout main && git pull origin main`, then delete the local branch (`git branch -d issue/<N>`).
 
-## Responsibilities
+Non-substantive edits (typos, comments only) may skip the issue and land directly on a small branch or via the standard PR flow at the contributor's discretion.
 
-- **Own the product and technical plan**: scope, sequencing, trade-offs, and alignment with `docs/architecture.md`.
-- **Create and curate GitHub Issues** with clear titles, descriptions, and acceptance criteria. Use `gh` or `orchestrator.py` from the repository root.
-- **Delegate all implementation to Workers**: contributors or agents work **only** in isolated git worktrees created with `scripts/agent_worker.py`, on branches `issue/<N>`.
-- **Track delivery**: issue status, linked PRs, and definition of done; update docs when architecture decisions change.
-- **Review, fix, and merge PRs by default**: After Workers open PRs (or when the user asks to continue the queue), the Planner **proactively** uses `gh` to inspect work—`gh pr list`, `gh pr diff`, `gh pr checks`—performs a **structured review** (security, fit with `docs/architecture.md`, CI status, obvious bugs), **fixes** what is needed (commit and push to the PR branch when possible; if only the user or another actor can fix, say so clearly with concrete steps), then **merges** when satisfied. The Planner **does not** need to formally **approve** PRs on GitHub; **`gh pr review --approve` is not** a default requirement. Merging should not be left as a routine manual user step unless GitHub policy or permissions block it.
-- **Do not stop at "PR opened"**: When a Worker or background subagent opens a PR, the Planner must finish review in the same session—run `gh pr diff` and `gh pr checks`, complete architecture/security checks, and merge with `gh pr merge` when unblocked.
+## Merge policy
 
-### Merge policy
-
-- Prefer **`gh pr merge`** once required checks are green and review criteria are met.
-- For Worker/subagent PRs, review-plus-merge is mandatory in-session when checks are green and no policy/permission blocker exists.
-- Respect **dependency order** (for example merge an earlier epic or base PR before dependent PRs).
-- After a Worker pushes `issue/<N>` and opens the PR, the Planner (or designated merger) should run **`gh pr checks`**, complete review, and then run **`gh pr merge`** as soon as merge criteria are met (unless blocked by policy/permissions).
-- Workers should not assume they merged their own PR; Planners should not leave merge as a routine manual user step when unblocked.
-
-### When merge is blocked
-
-Branch protection or permissions may require checks from specific actors, mandatory reviews from others, or disallow merge from the Planner account. **`gh pr merge` can still fail** even when the branch is healthy. Surface the blocker explicitly (error output, missing permission, or policy text) and outline the smallest next step—do **not** assume a successful merge or that a formal GitHub approval step fixed the issue. If policy truly requires a separate approver or bot, call that out; otherwise prefer configuration that allows merge after green checks and Planner review in-repo.
+- Prefer `gh pr merge` once required checks are green and review criteria are met.
+- Respect **dependency order** (merge a base PR before dependents).
+- If `gh pr merge` fails because of branch protection or missing permissions, surface the blocker explicitly (error output, missing permission, or policy text) and outline the smallest next step. Do **not** assume a successful merge or that a separate approval step fixed the issue. If policy truly requires another approver or a specific check from a bot, call that out.
 
 ## Constraints
 
-- **Do not implement substantive changes in the main workspace.** The default clone is for planning, docs, and orchestration only. Substantive work includes application features, Firebase/integration logic, rules/security policy changes, CI/workflow edits, and test-suite changes (except a one-line typo fix). Implementation lands via PRs from worktrees.
-- **Do not bypass the worktree workflow** for substantive app changes—file or update an issue and assign work to a Worker.
 - Use **English** for issues, comments, code review notes, and documentation.
 - New user-visible UI strings must use i18n keys (no hardcoded English in JSX except dev-only/debug-only text). Store app translations under `src/common/i18n/locales/`.
-
-### Planner delegation guardrails
-
-- When delegating implementation with Cursor Task/subagents, Claude Code, or other delegated agents, prompts **must include** the GitHub issue number (`N`).
-- Delegation prompts **must require** `python3 scripts/agent_worker.py N` and implementation in `../worktrees/issue-<N>/` on branch `issue/<N>`.
-- Delegation prompts **must explicitly forbid** direct implementation edits in the planner root/default workspace.
-- Delegation prompts **must explicitly require** pre-push verification with `npm run lint`, `npm run test`, `npm run build`, and `npm run verify:doctor`; workers must fix all major findings and rerun until `verify:doctor` is clean.
-
-## Worker workflow
-
-1. Planner opens or refines the issue.
-2. Worker runs: `python3 scripts/agent_worker.py <issue_number>`
-3. Worker implements in `../worktrees/issue-<N>/` on branch `issue/<N>`.
-4. **Before opening a PR (hard rule):** `git fetch origin`, then **`git rebase origin/main`** so the branch is up to date with the latest `main`. Resolve conflicts, then rerun project checks (for example lint and build) on the rebased branch. Workers must also run `npm run verify:doctor` before push/PR and resolve all major findings; rerun until the doctor verification is clean. **Default is rebase**; if your team forbids rewriting branch history, **`git merge origin/main`** into the issue branch is an acceptable alternative—still update from `main` before push and PR creation.
-5. **Before `git push` / PR creation (hard rule):** run `npm run lint`, `npm run test`, `npm run build`, and `npm run verify:doctor` (same check CI runs in `.github/workflows/ci.yml`).
-6. Push `issue/<N>` and open the PR (`gh pr create` or equivalent).
-7. Planner (or designated merger) runs `gh pr checks`, performs review, and merges with `gh pr merge` once checks are green and review criteria are met (unless blocked; see **When merge is blocked**).
-8. After merge **or abandon**, Worker or Planner **always** runs: `python3 scripts/cleanup.py <issue_number>` to delete the local `../worktrees/issue-<N>/` directory and prune stale worktree metadata. If merged, fetch/update local `main` before cleanup.
+- Keep the i18n key set in sync across `en` and `sv` locales.
+- Do not bypass the issue + PR flow for substantive changes.
 
 ## References
 
-- Master architecture: `docs/architecture.md`
+- Master architecture: [`docs/architecture.md`](../docs/architecture.md)
 - Styles: `src/common/styles/` (BEM-oriented SCSS; semantic score tokens in `_variables.scss`)
-
-## Additional guidance (Claude / `.claude`)
-
-- Read [`.claude/rules/tdd-vitest.md`](rules/tdd-vitest.md) when changing behavior under `src/`.
+- TDD: [`rules/tdd-vitest.md`](rules/tdd-vitest.md)
 - `.claude/settings.local.json` is machine-specific and is not committed as team policy; do not rely on it for shared rules.

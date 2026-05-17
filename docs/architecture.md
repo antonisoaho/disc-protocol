@@ -1,6 +1,6 @@
 # Master Architecture — Disc Golf Social (Mobile-First PWA)
 
-This document is the **single source of truth** for technical direction. **Planners** maintain it; **Workers** implement against it in git worktrees (`scripts/agent_worker.py`).
+This document is the **single source of truth** for technical direction. Contributors implement against it on per-issue branches (see [`.cursorrules`](../.cursorrules) for the workflow).
 
 ## 1. Product summary
 
@@ -14,7 +14,7 @@ A **mobile-first** social web application for disc golf: users log **hole-by-hol
 | Backend | Firebase Authentication, Cloud Firestore, Firebase Hosting |
 | Offline | Service Worker (PWA): cache shell + queue writes for scoring where safe |
 | Styling | SCSS, **BEM** naming (`.block__element--modifier`), tokens in `src/common/styles/_variables.scss` |
-| Collaboration | Git **worktrees** per issue; branch `issue/<N>` |
+| Collaboration | Per-issue branch `issue/<N>` off `origin/main` |
 
 ## 3. Source layout
 
@@ -104,12 +104,15 @@ Security rules must enforce: only participants and owner mutate scores; only adm
 
 ## 9. Delivery process
 
-1. Planner breaks work into GitHub Issues (epics below).
-2. Worker: `python3 scripts/agent_worker.py <N>`.
-3. Before opening a PR: `git fetch origin` and **`git rebase origin/main`** (or merge `origin/main` if the team disallows rebase); then push and open PR from `issue/<N>`; CI must pass on the updated branch.
-4. Merge → `python3 scripts/cleanup.py <N>`.
+1. File a GitHub Issue with acceptance criteria (epics below).
+2. `git checkout -b issue/<N> origin/main`.
+3. Implement (TDD per [`.claude/rules/tdd-vitest.md`](../.claude/rules/tdd-vitest.md) for `src/` changes).
+4. `git fetch origin && git rebase origin/main`; run `npm run lint`, `npm run test`, `npm run build`, `npm run verify:doctor`.
+5. Push and open the PR (`gh pr create`, `Closes #<N>`); CI must pass.
+6. `gh pr checks` until green, then `gh pr merge`.
+7. `git checkout main && git pull && git branch -d issue/<N>`.
 
-By default the **Planner** uses GitHub CLI to **review**, **fix** if needed, and **merge** when checks and criteria are satisfied—**without** requiring a formal GitHub PR approval step—unless repository policy blocks merge (see `.cursorrules`).
+If `gh pr merge` is blocked by branch protection or missing permissions, surface the blocker explicitly and outline the smallest next step (see `.cursorrules`).
 
 ## 10. Epic backlog (GitHub Issues)
 
