@@ -7,7 +7,6 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "deploy:hosting": "npm run build && firebase deploy --only hosting",
-    "cleanup:issue": "python3 scripts/cleanup.py",
     "lint": "eslint .",
     "verify:doctor": "node scripts/verify-react-doctor-score.mjs",
     "icons": "node scripts/render-pwa-icons.mjs",
