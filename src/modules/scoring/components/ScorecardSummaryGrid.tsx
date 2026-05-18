@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { scoreTierToNotationClassName, strokesParDeltaToNotation } from '@modules/scoring/domain/scoreSemantic'
 import { scoreTierLabel } from '@modules/scoring/domain/scoreTierI18n'
 import { computeParticipantTotals, type ParticipantHoleScores } from '@core/domain/scorecardTable'
+import { formatToParBadge } from '@modules/scoring/domain/formatToParBadge'
 
 type Props = {
   participantIds: string[]
@@ -91,10 +92,16 @@ export function ScorecardSummaryGrid({ participantIds, participantNames, scoresB
           {participantIds.map((participantId) => {
             const displayName = participantNames[participantId] ?? participantId
             const totals = totalsByParticipant[participantId]
+            const badge = totals
+              ? formatToParBadge(totals.totalDelta, totals.scoredHoles)
+              : ''
             return (
               <tr key={participantId}>
                 <th scope="row" className="scorecard-summary-grid__player-name">
                   {displayName}
+                  {badge ? (
+                    <span className="scorecard-summary-grid__to-par-badge"> ({badge})</span>
+                  ) : null}
                 </th>
                 {holes.map((h) => {
                   const key = String(h)

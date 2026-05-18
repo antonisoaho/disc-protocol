@@ -863,6 +863,12 @@
   white-space: nowrap;
 }
 
+.scorecard-summary-grid__to-par-badge {
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: $space-1;
+}
+
 .scorecard-summary-grid__stroke-cell {
   padding: $space-2 $space-1;
   text-align: center;
