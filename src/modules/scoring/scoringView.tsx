@@ -1,11 +1,12 @@
 import type { User } from 'firebase/auth'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NavLink, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { NavLink, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { subscribeRound, type RoundListItem } from '@core/domain/rounds'
 import { ScoringPanel } from '@modules/scoring/components/ScoringPanel'
 import { ReadOnlyScorecard } from '@modules/scoring/components/ReadOnlyScorecard'
 import { resolveRoundAccess } from '@modules/scoring/domain/roundAccess'
+import { resolveScorecardBackPath } from '@modules/scoring/domain/resolveScorecardBackPath'
 
 type Props = {
   user: User
@@ -20,6 +21,8 @@ export function ScoringView({ user }: Props) {
   const { t } = useTranslation('common')
   const { roundId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const backPath = resolveScorecardBackPath(location.state)
   const [load, setLoad] = useState<LoadState>({ status: 'loading' })
 
   useEffect(() => {
@@ -40,7 +43,7 @@ export function ScoringView({ user }: Props) {
 
   return (
     <div className="app-shell__flow">
-      <NavLink to="/" className="app-shell__link dashboard-home__back">
+      <NavLink to={backPath} className="app-shell__link dashboard-home__back">
         {t('rounds.scorecard.backHome')}
       </NavLink>
       {load.status === 'loading' ? null : load.status === 'missing' || access === 'denied' ? (
@@ -52,7 +55,7 @@ export function ScoringView({ user }: Props) {
           key={roundId}
           user={user}
           roundId={roundId}
-          onAfterRoundDeleted={() => navigate('/')}
+          onAfterRoundDeleted={() => navigate(backPath)}
         />
       ) : (
         <ReadOnlyScorecard round={load.round.data} />
