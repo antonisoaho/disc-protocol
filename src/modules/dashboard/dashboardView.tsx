@@ -268,7 +268,11 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
         <ul className="dashboard-home__round-list">
           {completedRoundRows.slice(0, 6).map(({ id, data }) => (
             <li key={id} className="dashboard-home__round-row">
-              <Link to={`/rounds/${id}/scorecard`} className="dashboard-home__round-link">
+              <Link
+                to={`/rounds/${id}/scorecard`}
+                state={readOnly ? { backTo: `/players/${profileUid}` } : undefined}
+                className="dashboard-home__round-link"
+              >
                 <span className="dashboard-home__round-name">
                   {data.courseSource === 'fresh'
                     ? (data.courseDraft?.name ?? t('scoring.rounds.unnamed'))
