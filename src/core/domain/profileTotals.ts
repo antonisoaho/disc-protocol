@@ -68,6 +68,70 @@ export function computeProfileTotals(
   return { totalThrows, totalMeters }
 }
 
+export type ProfileWinSummary = {
+  /** Rounds where the user uniquely had the lowest total strokes vs registered opponents. */
+  wins: number
+  /** Multi-player rounds eligible for win comparison (everyone scored same hole count > 0). */
+  comparableRounds: number
+}
+
+type ComputeProfileWinOptions = ComputeProfileTotalsOptions
+
+/**
+ * Count strict-win rounds where the user beat every other registered participant.
+ * Mirrors the head-to-head eligibility rule: every participant must have scored
+ * the same number of holes (> 0), and the user's total strokes must be strictly
+ * lower than every other participant's.
+ */
+export function computeProfileWinCount(
+  rounds: RoundDoc[],
+  participantUid: string,
+  options?: ComputeProfileWinOptions,
+): ProfileWinSummary {
+  const courseKey = options?.courseKey
+  let wins = 0
+  let comparableRounds = 0
+
+  for (const round of rounds) {
+    if (round.completedAt === null) continue
+    if (!round.participantIds.includes(participantUid)) continue
+    if (courseKey && deriveCourseGrouping(round).key !== courseKey) continue
+
+    const perParticipant = readParticipantHoleScores(round)
+    const mineMap = perParticipant[participantUid] ?? {}
+    const mineHoles = Object.keys(mineMap).length
+    if (mineHoles === 0) continue
+
+    type Aggregate = { uid: string; strokes: number; scoredHoles: number }
+    const opponents: Aggregate[] = []
+    let mismatchedHoleCount = false
+    for (const uid of round.participantIds) {
+      if (uid === participantUid) continue
+      const holeMap = perParticipant[uid] ?? {}
+      const scoredHoles = Object.keys(holeMap).length
+      if (scoredHoles === 0) continue
+      if (scoredHoles !== mineHoles) {
+        mismatchedHoleCount = true
+        break
+      }
+      let strokes = 0
+      for (const score of Object.values(holeMap)) strokes += score.strokes
+      opponents.push({ uid, strokes, scoredHoles })
+    }
+    if (mismatchedHoleCount) continue
+    if (opponents.length === 0) continue
+
+    let myStrokes = 0
+    for (const score of Object.values(mineMap)) myStrokes += score.strokes
+
+    comparableRounds += 1
+    const beatsEveryone = opponents.every((o) => myStrokes < o.strokes)
+    if (beatsEveryone) wins += 1
+  }
+
+  return { wins, comparableRounds }
+}
+
 /**
  * Human-readable meters total. Below 1000m prints `N m`; otherwise prints
  * `N.Nk m` (one decimal). Zero renders as `—`.

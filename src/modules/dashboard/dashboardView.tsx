@@ -8,13 +8,17 @@ import {
   listParticipantPlayedCourses,
   listParticipantRoundDeltasChronological,
 } from '@core/domain/roundAnalytics'
-import { computeProfileTotals, formatMetersPlayed } from '@core/domain/profileTotals'
+import {
+  computeProfileTotals,
+  computeProfileWinCount,
+  formatMetersPlayed,
+} from '@core/domain/profileTotals'
 import { fetchTemplateHoles } from '@core/domain/courseData'
 import type { CourseHoleTemplate } from '@core/domain/course'
 import { subscribeMyRounds, type RoundListItem } from '@core/domain/rounds'
 import { subscribeUserDirectory, type UserDirectoryEntry } from '@core/users/userDirectory'
 import { translateUserError } from '@common/i18n/translateError'
-import { DeltaAreaChart } from '@modules/dashboard/components/DeltaAreaChart'
+import { DeltaAreaChart, type DeltaSample } from '@modules/dashboard/components/DeltaAreaChart'
 
 const ALL_COURSES_KEY = '__all__'
 
@@ -166,7 +170,42 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
       ),
     [items, profileUid, templateHolesByTemplateId, activeCourseKey],
   )
+  const winsSummary = useMemo(
+    () =>
+      computeProfileWinCount(
+        items.map((row) => row.data),
+        profileUid,
+        activeCourseKey ? { courseKey: activeCourseKey } : undefined,
+      ),
+    [items, profileUid, activeCourseKey],
+  )
   const deltas = trend.map((row) => row.totalDelta)
+  const trendSamples: DeltaSample[] = trend.map((row) => ({
+    id: row.roundId,
+    dateMs: row.dateMs,
+    delta: row.totalDelta,
+  }))
+  const dateFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(i18n.language, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }),
+    [i18n.language],
+  )
+  const formatSampleDate = (ms: number): string => {
+    if (!ms) return t('dashboard.trendTooltipNoDate')
+    try {
+      return dateFormatter.format(new Date(ms))
+    } catch {
+      return t('dashboard.trendTooltipNoDate')
+    }
+  }
+  const formatSampleDelta = (delta: number): string => {
+    if (delta === 0) return 'E'
+    return delta > 0 ? `+${delta}` : `${delta}`
+  }
   const stats =
     deltas.length === 0
       ? { best: null as number | null, average: null as number | null, count: 0 }
@@ -254,6 +293,12 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
             {formatMetersPlayed(profileTotals.totalMeters)}
           </span>
         </div>
+        {!readOnly && winsSummary.comparableRounds > 0 ? (
+          <div className="dashboard-home__stat">
+            <span className="dashboard-home__stat-label">{t('dashboard.wins')}</span>
+            <span className="dashboard-home__stat-value">{winsSummary.wins}</span>
+          </div>
+        ) : null}
       </div>
 
       {readOnly && mutualVsViewerSummary ? (
@@ -302,7 +347,12 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
       {deltas.length > 0 ? (
         <div className="dashboard-home__chart-wrap">
           <p className="dashboard-home__chart-caption">{t('dashboard.trendCaption')}</p>
-          <DeltaAreaChart deltas={deltas} aria-label={t('dashboard.trendAria')} />
+          <DeltaAreaChart
+            samples={trendSamples}
+            formatDate={formatSampleDate}
+            formatDelta={formatSampleDelta}
+            aria-label={t('dashboard.trendAria')}
+          />
         </div>
       ) : (
         <p className="dashboard-home__muted">{t('dashboard.noCompletedRounds')}</p>

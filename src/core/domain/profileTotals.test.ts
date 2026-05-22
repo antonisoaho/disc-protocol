@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { CourseHoleTemplate } from '@core/domain/course'
 import type { RoundDoc } from '@core/domain/round'
-import { computeProfileTotals, formatMetersPlayed } from '@core/domain/profileTotals'
+import {
+  computeProfileTotals,
+  computeProfileWinCount,
+  formatMetersPlayed,
+} from '@core/domain/profileTotals'
 
 const ts = {} as RoundDoc['startedAt']
 
@@ -193,6 +197,165 @@ describe('computeProfileTotals — courseKey filter', () => {
       { courseKey: 'catalog:nonexistent' },
     )
     expect(result).toEqual({ totalThrows: 0, totalMeters: 0 })
+  })
+})
+
+describe('computeProfileWinCount', () => {
+  it('counts a strict win against one opponent', () => {
+    const rounds = [
+      makeRound({
+        participantIds: ['me', 'rival'],
+        participantHoleScores: {
+          me: fullHoles('me', [3, 3, 3]),
+          rival: fullHoles('rival', [4, 4, 4]),
+        },
+      }),
+    ]
+    expect(computeProfileWinCount(rounds, 'me')).toEqual({
+      wins: 1,
+      comparableRounds: 1,
+    })
+  })
+
+  it('does not count a tie as a win', () => {
+    const rounds = [
+      makeRound({
+        participantIds: ['me', 'rival'],
+        participantHoleScores: {
+          me: fullHoles('me', [3, 3, 3]),
+          rival: fullHoles('rival', [3, 3, 3]),
+        },
+      }),
+    ]
+    expect(computeProfileWinCount(rounds, 'me')).toEqual({
+      wins: 0,
+      comparableRounds: 1,
+    })
+  })
+
+  it('does not count a loss', () => {
+    const rounds = [
+      makeRound({
+        participantIds: ['me', 'rival'],
+        participantHoleScores: {
+          me: fullHoles('me', [5, 5, 5]),
+          rival: fullHoles('rival', [3, 3, 3]),
+        },
+      }),
+    ]
+    expect(computeProfileWinCount(rounds, 'me')).toEqual({
+      wins: 0,
+      comparableRounds: 1,
+    })
+  })
+
+  it('skips solo rounds (single participant counts as no comparable opponents)', () => {
+    const rounds = [
+      makeRound({
+        participantIds: ['me'],
+        participantHoleScores: { me: fullHoles('me', [3, 3, 3]) },
+      }),
+    ]
+    expect(computeProfileWinCount(rounds, 'me')).toEqual({
+      wins: 0,
+      comparableRounds: 0,
+    })
+  })
+
+  it('skips rounds where participants have different scored hole counts', () => {
+    const rounds = [
+      makeRound({
+        participantIds: ['me', 'rival'],
+        participantHoleScores: {
+          me: fullHoles('me', [3, 3, 3]),
+          rival: fullHoles('rival', [3, 3]),
+        },
+      }),
+    ]
+    expect(computeProfileWinCount(rounds, 'me')).toEqual({
+      wins: 0,
+      comparableRounds: 0,
+    })
+  })
+
+  it('handles three players where I beat both', () => {
+    const rounds = [
+      makeRound({
+        participantIds: ['me', 'rival', 'other'],
+        participantHoleScores: {
+          me: fullHoles('me', [2, 3, 3]),
+          rival: fullHoles('rival', [3, 3, 3]),
+          other: fullHoles('other', [4, 4, 4]),
+        },
+      }),
+    ]
+    expect(computeProfileWinCount(rounds, 'me')).toEqual({
+      wins: 1,
+      comparableRounds: 1,
+    })
+  })
+
+  it('does not count being tied with the next-lowest as a win', () => {
+    const rounds = [
+      makeRound({
+        participantIds: ['me', 'rival', 'other'],
+        participantHoleScores: {
+          me: fullHoles('me', [3, 3, 3]),
+          rival: fullHoles('rival', [3, 3, 3]),
+          other: fullHoles('other', [5, 5, 5]),
+        },
+      }),
+    ]
+    expect(computeProfileWinCount(rounds, 'me')).toEqual({
+      wins: 0,
+      comparableRounds: 1,
+    })
+  })
+
+  it('ignores rounds without completedAt', () => {
+    const rounds = [
+      makeRound({
+        completedAt: null,
+        participantIds: ['me', 'rival'],
+        participantHoleScores: {
+          me: fullHoles('me', [3, 3, 3]),
+          rival: fullHoles('rival', [4, 4, 4]),
+        },
+      }),
+    ]
+    expect(computeProfileWinCount(rounds, 'me')).toEqual({
+      wins: 0,
+      comparableRounds: 0,
+    })
+  })
+
+  it('respects courseKey option', () => {
+    const rounds = [
+      makeRound({
+        courseId: 'course-1',
+        participantIds: ['me', 'rival'],
+        participantHoleScores: {
+          me: fullHoles('me', [3, 3, 3]),
+          rival: fullHoles('rival', [4, 4, 4]),
+        },
+      }),
+      makeRound({
+        courseId: 'course-2',
+        participantIds: ['me', 'rival'],
+        participantHoleScores: {
+          me: fullHoles('me', [3, 3, 3]),
+          rival: fullHoles('rival', [2, 2, 2]),
+        },
+      }),
+    ]
+    expect(computeProfileWinCount(rounds, 'me', { courseKey: 'catalog:course-1' })).toEqual({
+      wins: 1,
+      comparableRounds: 1,
+    })
+    expect(computeProfileWinCount(rounds, 'me', { courseKey: 'catalog:course-2' })).toEqual({
+      wins: 0,
+      comparableRounds: 1,
+    })
   })
 })
 

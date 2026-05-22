@@ -1,9 +1,98 @@
+@use 'sass:map';
+@use '../variables' as *;
+
 .delta-area-chart {
+  position: relative;
+  width: 100%;
+  padding: $space-3;
+  border: 1px solid var(--border);
+  border-radius: $radius-md;
+  background: var(--surface-bg);
+  color: map.get($score-color, birdie);
+}
+
+.delta-area-chart__svg {
   width: 100%;
   height: auto;
-  max-height: 7rem;
+  max-height: 14rem;
+  display: block;
+  touch-action: none;
 }
 
 .delta-area-chart__line {
-  opacity: 0.95;
+  opacity: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
+}
+
+.delta-area-chart__zero {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.delta-area-chart__crosshair {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  opacity: 0.5;
+  stroke-dasharray: 2 3;
+}
+
+.delta-area-chart__axis {
+  fill: var(--text-muted);
+  font-size: 11px;
+  font-family: $font-family-mono;
+}
+
+.delta-area-chart__dot {
+  fill: var(--surface-bg);
+  stroke: currentColor;
+  stroke-width: 2;
+  cursor: pointer;
+  transition: r 0.12s ease;
+
+  &:focus-visible {
+    outline: none;
+    stroke-width: 3;
+  }
+}
+
+.delta-area-chart__dot--active {
+  fill: currentColor;
+}
+
+.delta-area-chart__tooltip {
+  position: absolute;
+  bottom: calc(100% - #{$space-3});
+  transform: translateX(-50%);
+  display: inline-flex;
+  flex-direction: column;
+  gap: $space-1;
+  padding: $space-2 $space-3;
+  border: 1px solid var(--border);
+  border-radius: $radius-sm;
+  background: var(--body-bg);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  z-index: 1;
+}
+
+.delta-area-chart__tooltip--below {
+  bottom: auto;
+  top: calc(100% - #{$space-6});
+}
+
+.delta-area-chart__tooltip-date {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.delta-area-chart__tooltip-delta {
+  color: var(--text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-size: 1rem;
 }
