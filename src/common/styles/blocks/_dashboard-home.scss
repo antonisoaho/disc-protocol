@@ -246,6 +246,11 @@
   background: var(--surface-bg);
 }
 
+.dashboard-home__round-row--ongoing {
+  border-color: color-mix(in srgb, map.get($score-color, birdie) 45%, var(--border));
+  background: color-mix(in srgb, map.get($score-color, birdie) 6%, var(--surface-bg));
+}
+
 .dashboard-home__round-link {
   display: flex;
   flex-direction: column;
