@@ -25,7 +25,7 @@ export type ListParticipantRoundDeltasOptions = {
   courseKey?: string
 }
 
-function deriveCourseGrouping(round: RoundDoc): PlayedCourse {
+export function deriveCourseGrouping(round: RoundDoc): PlayedCourse {
   const isFresh = round.courseSource === 'fresh'
   const promotedTarget = round.coursePromotion?.targetCourseId ?? null
   if (isFresh && !promotedTarget) {

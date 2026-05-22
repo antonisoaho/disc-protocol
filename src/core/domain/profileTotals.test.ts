@@ -131,6 +131,71 @@ describe('computeProfileTotals', () => {
   })
 })
 
+describe('computeProfileTotals — courseKey filter', () => {
+  it('restricts totals to the selected catalog course', () => {
+    const rounds = [
+      makeRound({
+        courseId: 'course-1',
+        templateId: 'template-1',
+        participantIds: ['me'],
+        participantHoleScores: { me: fullHoles('me', [3, 3, 3]) },
+      }),
+      makeRound({
+        courseId: 'course-2',
+        templateId: 'template-2',
+        participantIds: ['me'],
+        participantHoleScores: { me: fullHoles('me', [4, 4, 4]) },
+      }),
+    ]
+    const map = new Map<string, CourseHoleTemplate[]>([
+      ['template-1', threeHoleSavedTemplate],
+      ['template-2', threeHoleSavedTemplate],
+    ])
+    const result = computeProfileTotals(rounds, 'me', map, { courseKey: 'catalog:course-1' })
+    expect(result.totalThrows).toBe(9)
+    expect(result.totalMeters).toBe(600)
+  })
+
+  it('matches fresh-course key with the trimmed lowercased draft name', () => {
+    const rounds = [
+      makeRound({
+        courseSource: 'fresh',
+        courseId: 'fresh-sentinel',
+        courseDraft: {
+          name: ' Backyard ',
+          holes: [
+            { number: 1, par: 3, lengthMeters: 150 },
+            { number: 2, par: 3, lengthMeters: 250 },
+          ],
+        },
+        participantIds: ['me'],
+        participantHoleScores: { me: fullHoles('me', [3, 3]) },
+      }),
+    ]
+    const result = computeProfileTotals(rounds, 'me', new Map(), {
+      courseKey: 'fresh:backyard',
+    })
+    expect(result.totalMeters).toBe(400)
+  })
+
+  it('returns zero when courseKey matches nothing', () => {
+    const rounds = [
+      makeRound({
+        courseId: 'course-1',
+        participantIds: ['me'],
+        participantHoleScores: { me: fullHoles('me', [3, 3, 3]) },
+      }),
+    ]
+    const result = computeProfileTotals(
+      rounds,
+      'me',
+      new Map([['template-1', threeHoleSavedTemplate]]),
+      { courseKey: 'catalog:nonexistent' },
+    )
+    expect(result).toEqual({ totalThrows: 0, totalMeters: 0 })
+  })
+})
+
 describe('formatMetersPlayed', () => {
   it('returns em-dash when meters is 0', () => {
     expect(formatMetersPlayed(0)).toBe('—')

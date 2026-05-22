@@ -1,6 +1,14 @@
 import type { CourseHoleTemplate } from '@core/domain/course'
 import type { RoundDoc } from '@core/domain/round'
-import { readParticipantHoleScores } from '@core/domain/roundAnalytics'
+import {
+  deriveCourseGrouping,
+  readParticipantHoleScores,
+} from '@core/domain/roundAnalytics'
+
+export type ComputeProfileTotalsOptions = {
+  /** Restrict to rounds whose course grouping key matches (mirrors dashboard course filter). */
+  courseKey?: string
+}
 
 export type ProfileTotals = {
   /** Sum of strokes the user has thrown across every completed scored hole. */
@@ -18,13 +26,16 @@ export function computeProfileTotals(
   rounds: RoundDoc[],
   participantUid: string,
   templateHolesByTemplateId: Map<string, CourseHoleTemplate[]>,
+  options?: ComputeProfileTotalsOptions,
 ): ProfileTotals {
   let totalThrows = 0
   let totalMeters = 0
+  const courseKey = options?.courseKey
 
   for (const round of rounds) {
     if (round.completedAt === null) continue
     if (!round.participantIds.includes(participantUid)) continue
+    if (courseKey && deriveCourseGrouping(round).key !== courseKey) continue
 
     const holeMap = readParticipantHoleScores(round)[participantUid] ?? {}
     if (Object.keys(holeMap).length === 0) continue
