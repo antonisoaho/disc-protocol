@@ -424,6 +424,7 @@ export const commonSv = {
       setHoleCountAndFillMetadata: 'Ange antal hål och fyll i saknad hålmetadata innan rundan slutförs.',
       parRequiredBeforeComplete: 'Par krävs innan rundan kan slutföras.',
       parRange: 'Par måste vara ett heltal i intervallet {{min}}-{{max}}.',
+      strokesExceedParCap: 'Poäng kan inte överstiga par + 5 (par {{par}}, max {{max}}).',
       lengthRequiredBeforeComplete: 'Längd krävs innan rundan kan slutföras.',
       lengthRangeMeters: 'Längd måste vara ett heltal i intervallet {{min}}-{{max}} meter.',
       freshRoundHoleCountRange: 'Nya rundor måste innehålla {{min}}-{{max}} hål.',

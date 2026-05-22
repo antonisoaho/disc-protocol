@@ -423,6 +423,7 @@ export const commonEn = {
       setHoleCountAndFillMetadata: 'Set a hole count and fill missing hole metadata before completing this round.',
       parRequiredBeforeComplete: 'Par is required before completing the round.',
       parRange: 'Par must be an integer in range {{min}}-{{max}}.',
+      strokesExceedParCap: 'Score cannot exceed par + 5 (par {{par}}, max {{max}}).',
       lengthRequiredBeforeComplete: 'Length is required before completing the round.',
       lengthRangeMeters: 'Length must be an integer in range {{min}}-{{max}} meters.',
       freshRoundHoleCountRange: 'Fresh rounds must include {{min}}-{{max}} holes.',

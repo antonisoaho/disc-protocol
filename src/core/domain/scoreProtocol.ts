@@ -40,6 +40,7 @@ export type ScoreProtocolIssueCode =
   | 'hole_out_of_range'
   | 'invalid_strokes'
   | 'invalid_par'
+  | 'strokes_exceed_par_cap'
 
 export type ScoreProtocolIssue = {
   code: ScoreProtocolIssueCode
@@ -285,6 +286,16 @@ export function normalizeHoleScoreUpdate(
 
   if (par === null || par < MIN_PAR || par > MAX_PAR) {
     issues.push(issue('invalid_par', 'par', `par must be an integer in range ${MIN_PAR}-${MAX_PAR}.`))
+  }
+
+  if (strokes !== null && par !== null && strokes > par + 5) {
+    issues.push(
+      issue(
+        'strokes_exceed_par_cap',
+        'strokes',
+        `strokes must be at most par + 5 (par ${par}, max ${par + 5}).`,
+      ),
+    )
   }
 
   if (issues.length > 0) {
