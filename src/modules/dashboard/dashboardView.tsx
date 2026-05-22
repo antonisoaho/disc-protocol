@@ -141,16 +141,6 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
     }
   }, [items, templateHolesByTemplateId])
 
-  const profileTotals = useMemo(
-    () =>
-      computeProfileTotals(
-        items.map((row) => row.data),
-        profileUid,
-        templateHolesByTemplateId,
-      ),
-    [items, profileUid, templateHolesByTemplateId],
-  )
-
   const playedCourses = useMemo(
     () => listParticipantPlayedCourses(items, profileUid),
     [items, profileUid],
@@ -165,6 +155,16 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
     items,
     profileUid,
     activeCourseKey ? { courseKey: activeCourseKey } : undefined,
+  )
+  const profileTotals = useMemo(
+    () =>
+      computeProfileTotals(
+        items.map((row) => row.data),
+        profileUid,
+        templateHolesByTemplateId,
+        activeCourseKey ? { courseKey: activeCourseKey } : undefined,
+      ),
+    [items, profileUid, templateHolesByTemplateId, activeCourseKey],
   )
   const deltas = trend.map((row) => row.totalDelta)
   const stats =
