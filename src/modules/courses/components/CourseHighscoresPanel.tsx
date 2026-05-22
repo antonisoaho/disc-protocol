@@ -44,7 +44,7 @@ export function CourseHighscoresPanel({ entries, stats, loadError, resolveDispla
       </h3>
       <dl className="course-highscores__stats" aria-label={t('courses.stats.ariaSummary')}>
         <div className="course-highscores__stat">
-          <dt className="course-highscores__stat-label">{t('courses.stats.scorecards')}</dt>
+          <dt className="course-highscores__stat-label">{t('courses.stats.totalRounds')}</dt>
           <dd className="course-highscores__stat-value">{stats.totalScorecards}</dd>
         </div>
         <div className="course-highscores__stat">
