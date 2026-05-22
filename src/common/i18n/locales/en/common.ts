@@ -489,6 +489,7 @@ export const commonEn = {
     },
     scorecard: {
       backHome: '← Back to dashboard',
+      backToPlayer: '← Back to player',
       notFoundOrNoAccess: 'This round is not available. It may have been removed or you may not be a participant.',
       readOnlyTitle: 'Scorecard · {{courseName}}',
       readOnlyMetaStarted: 'Started {{startedAt}}',
