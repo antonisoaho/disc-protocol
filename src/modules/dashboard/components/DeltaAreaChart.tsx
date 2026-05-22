@@ -19,10 +19,10 @@ type Props = {
 type Point = { x: number; y: number }
 
 const VIEW_W = 600
-const VIEW_H = 180
-const PAD_X = 24
+const VIEW_H = 160
+const PAD_X = 16
 const PAD_TOP = 18
-const PAD_BOTTOM = 28
+const PAD_BOTTOM = 12
 
 function smoothPath(points: Point[]): string {
   if (points.length === 0) return ''
@@ -123,10 +123,6 @@ export function DeltaAreaChart({
   const tooltipLeftPct = active ? (active.point.x / VIEW_W) * 100 : 0
   const tooltipAbove = active ? active.point.y > VIEW_H / 2 : true
 
-  const firstSample = samples[0]
-  const lastSample = samples[samples.length - 1]
-  const showAxisLabels = samples.length > 1
-
   return (
     <div className="delta-area-chart">
       <svg
@@ -192,26 +188,6 @@ export function DeltaAreaChart({
             </g>
           )
         })}
-        {showAxisLabels && firstSample ? (
-          <text
-            className="delta-area-chart__axis"
-            x={PAD_X}
-            y={VIEW_H - 8}
-            textAnchor="start"
-          >
-            {firstSample.dateMs ? formatDate(firstSample.dateMs) : ''}
-          </text>
-        ) : null}
-        {showAxisLabels && lastSample ? (
-          <text
-            className="delta-area-chart__axis"
-            x={VIEW_W - PAD_X}
-            y={VIEW_H - 8}
-            textAnchor="end"
-          >
-            {lastSample.dateMs ? formatDate(lastSample.dateMs) : ''}
-          </text>
-        ) : null}
       </svg>
       {active ? (
         <div
