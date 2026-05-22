@@ -224,13 +224,6 @@ export async function recordParticipantHoleScoreTransaction(
     if (!data.participantIds.includes(participantUid)) {
       throw new Error('Target participant is not in this round')
     }
-    if (actorUid !== participantUid && actorUid !== data.ownerId) {
-      const actorProfileSnap = await tx.get(doc(db, COLLECTIONS.users, actorUid))
-      const actorIsAdmin = isUserProfileAdmin(actorProfileSnap.data() ?? null)
-      if (!actorIsAdmin) {
-        throw new Error('Only owner can edit another participant score')
-      }
-    }
     const normalized = normalizeHoleScoreUpdate(
       { holeNumber, strokes, par },
       { holeCount: data.holeCount ?? null },
