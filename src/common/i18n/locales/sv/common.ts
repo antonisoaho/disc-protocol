@@ -146,6 +146,7 @@ export const commonSv = {
       addTemplate: 'Lägg till mall',
       saveTemplate: 'Spara mall',
       add: 'Lägg till',
+      back: '← Tillbaka till banor',
     },
     templateMeta: {
       holeCount_one: '{{count}} hål',
@@ -206,6 +207,10 @@ export const commonSv = {
       ariaSummary: 'Banstatistik',
       totalRounds: 'Spelade rundor',
       uniquePlayers: 'Unika spelare',
+    },
+    detail: {
+      notFoundTitle: 'Banan hittades inte',
+      notFound: 'Den här banan är inte tillgänglig längre.',
     },
   },
   scoring: {
@@ -516,6 +521,7 @@ export const commonSv = {
       saving: 'Sparar…',
       follow: 'Följ',
       unfollow: 'Avfölj',
+      back: '← Tillbaka till spelare',
     },
     errors: {
       updateFollowRelationship: 'Kunde inte uppdatera följrelation.',
