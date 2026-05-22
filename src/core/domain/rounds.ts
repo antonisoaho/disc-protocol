@@ -723,3 +723,32 @@ export function subscribeRound(
     onError,
   )
 }
+
+/**
+ * Query rounds played on a single course, newest completed first.
+ * Catches catalog rounds via `courseId`; promoted-fresh rounds whose original
+ * `courseId` is the fresh sentinel are not returned by this query — callers
+ * that need them must run a second query against `coursePromotion.targetCourseId`.
+ */
+export function courseRoundsQuery(courseId: string) {
+  return query(
+    collection(db, ROUNDS),
+    where('courseId', '==', courseId),
+    orderBy('completedAt', 'desc'),
+    limit(200),
+  )
+}
+
+export function subscribeCourseRounds(
+  courseId: string,
+  onNext: (items: RoundListItem[]) => void,
+  onError?: (e: FirestoreError) => void,
+): Unsubscribe {
+  return onSnapshot(
+    courseRoundsQuery(courseId),
+    (snap: QuerySnapshot) => {
+      onNext(snap.docs.map((d) => ({ id: d.id, data: d.data() as RoundDoc })))
+    },
+    onError,
+  )
+}

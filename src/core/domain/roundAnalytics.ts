@@ -121,7 +121,7 @@ export function listParticipantPlayedCourses(
   )
 }
 
-type ParticipantAggregate = {
+export type ParticipantAggregate = {
   scoredHoles: number
   totalStrokes: number
   totalPar: number
@@ -187,7 +187,7 @@ function readParticipantHoleScores(round: RoundDoc) {
   return next
 }
 
-function aggregateParticipantRound(round: RoundDoc, participantUid: string): ParticipantAggregate {
+export function aggregateParticipantRound(round: RoundDoc, participantUid: string): ParticipantAggregate {
   const participantScores = readParticipantHoleScores(round)[participantUid] ?? {}
   let scoredHoles = 0
   let totalStrokes = 0

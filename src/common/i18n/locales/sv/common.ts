@@ -188,6 +188,15 @@ export const commonSv = {
     deleteCourseConfirm:
       'Ta bort "{{courseName}}" och alla tillhorande layouter? Det går inte att angra.',
     deleteCourseError: 'Kunde inte ta bort banan',
+    highscores: {
+      title: 'Topplista',
+      empty: 'Inga avslutade rundor på den här banan ännu.',
+      loadError: 'Kunde inte hämta topplistan.',
+      strokesLabel_one: '{{count}} slag',
+      strokesLabel_other: '{{count}} slag',
+      deltaToPar: '{{delta}} mot par',
+      unknownPlayer: 'Okänd spelare',
+    },
   },
   scoring: {
     title: 'Rundor och poäng',

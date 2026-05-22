@@ -15,6 +15,7 @@ import {
 } from '@core/domain/courseData'
 import { filterCoursesForDiscovery, type LatLng } from '@modules/courses/domain/discovery'
 import { CoursePickerTemplatePanel } from '@modules/courses/components/CoursePickerTemplatePanel'
+import { CourseHighscoresPanel } from '@modules/courses/components/CourseHighscoresPanel'
 import { normalizeCourseCity, normalizeCourseName, validateCourseName } from '@core/domain/templateDraft'
 
 type Props = {
@@ -582,6 +583,13 @@ export function CoursePicker({
                 />
               ) : templates.length === 0 && !templatesError ? (
                 <p className="course-picker__empty">{t('courses.empty.noLayouts')}</p>
+              ) : null}
+              {resolvedTemplate ? (
+                <CourseHighscoresPanel
+                  key={`${activeCourse.id}-highscores`}
+                  courseId={activeCourse.id}
+                  templateHoleCount={resolvedTemplate.holes.length}
+                />
               ) : null}
             </section>
           ) : courses.length === 0 && !listError && user ? (

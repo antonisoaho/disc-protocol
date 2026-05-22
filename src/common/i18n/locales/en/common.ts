@@ -186,6 +186,15 @@ export const commonEn = {
     deleteCourseConfirm:
       'Delete "{{courseName}}" and all templates under it? This cannot be undone.',
     deleteCourseError: 'Could not delete course',
+    highscores: {
+      title: 'Top scores',
+      empty: 'No completed rounds on this course yet.',
+      loadError: 'Could not load highscores.',
+      strokesLabel_one: '{{count}} stroke',
+      strokesLabel_other: '{{count}} strokes',
+      deltaToPar: '{{delta}} vs par',
+      unknownPlayer: 'Unknown player',
+    },
   },
   scoring: {
     title: 'Rounds & scoring',
