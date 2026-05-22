@@ -13,6 +13,12 @@ import {
   type CourseWithId,
 } from '@core/domain/courseData'
 import { normalizeCourseCity, validateCourseName } from '@core/domain/templateDraft'
+import {
+  computeCourseHighscores,
+  computeCourseOverviewStats,
+} from '@core/domain/courseHighscores'
+import { subscribeCourseRounds, type RoundListItem } from '@core/domain/rounds'
+import { subscribeUserDirectory, type UserDirectoryEntry } from '@core/users/userDirectory'
 import { CoursePickerTemplatePanel } from '@modules/courses/components/CoursePickerTemplatePanel'
 import { CourseHighscoresPanel } from '@modules/courses/components/CourseHighscoresPanel'
 import { CourseTemplateReadOnly } from '@modules/courses/components/CourseTemplateReadOnly'
@@ -50,6 +56,31 @@ function CourseDetail({ courseId }: DetailProps) {
   const [renameError, setRenameError] = useState<string | null>(null)
   const [deletingCourse, setDeletingCourse] = useState(false)
   const [deleteCourseError, setDeleteCourseError] = useState<string | null>(null)
+
+  const [roundsState, setRoundsState] = useState<{
+    courseId: string
+    rounds: RoundListItem[]
+    error: string | null
+  }>({ courseId, rounds: [], error: null })
+  const [directory, setDirectory] = useState<UserDirectoryEntry[]>([])
+
+  useEffect(() => {
+    const unsub = subscribeCourseRounds(
+      courseId,
+      (items) => setRoundsState({ courseId, rounds: items, error: null }),
+      (e) =>
+        setRoundsState({ courseId, rounds: [], error: translateUserError(t, e.message) }),
+    )
+    return () => unsub()
+  }, [courseId, t])
+
+  useEffect(() => {
+    const unsub = subscribeUserDirectory(
+      (entries) => setDirectory(entries),
+      () => {},
+    )
+    return () => unsub()
+  }, [])
 
   useEffect(() => {
     const unsub = subscribeCourses(
@@ -94,6 +125,36 @@ function CourseDetail({ courseId }: DetailProps) {
 
   const renameName = renameDraft?.name ?? course?.name ?? ''
   const renameCity = renameDraft?.city ?? course?.city ?? ''
+
+  const rounds = useMemo(
+    () => (roundsState.courseId === courseId ? roundsState.rounds : []),
+    [roundsState, courseId],
+  )
+  const roundsError = roundsState.courseId === courseId ? roundsState.error : null
+
+  const overviewStats = useMemo(
+    () => computeCourseOverviewStats(rounds, courseId, resolvedTemplate?.holes ?? []),
+    [rounds, courseId, resolvedTemplate],
+  )
+  const highscoreEntries = useMemo(
+    () => computeCourseHighscores(rounds, courseId, resolvedTemplate?.holes.length ?? 0),
+    [rounds, courseId, resolvedTemplate],
+  )
+  const displayNameByUid = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const entry of directory) {
+      map.set(entry.uid, entry.displayName)
+    }
+    return map
+  }, [directory])
+  const resolveDisplayName = useMemo(
+    () => (uid: string) => {
+      const name = displayNameByUid.get(uid)
+      if (name && name.trim().length > 0) return name
+      return t('courses.highscores.unknownPlayer')
+    },
+    [displayNameByUid, t],
+  )
 
   async function handleRenameCourse(e: React.FormEvent) {
     e.preventDefault()
@@ -195,8 +256,10 @@ function CourseDetail({ courseId }: DetailProps) {
           {resolvedTemplate ? (
             <CourseHighscoresPanel
               key={`${course.id}-highscores`}
-              courseId={course.id}
-              templateHoleCount={resolvedTemplate.holes.length}
+              entries={highscoreEntries}
+              stats={overviewStats}
+              loadError={roundsError}
+              resolveDisplayName={resolveDisplayName}
             />
           ) : null}
 
@@ -226,6 +289,7 @@ function CourseDetail({ courseId }: DetailProps) {
                 <CourseTemplateReadOnly
                   key={`${course.id}-${resolvedTemplate.id}-ro`}
                   template={resolvedTemplate}
+                  holeStats={overviewStats.holeStats}
                 />
               )
             ) : templates.length === 0 && !templatesError ? (

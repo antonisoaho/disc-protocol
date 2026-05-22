@@ -200,11 +200,15 @@ export const commonEn = {
       title: 'Overview',
       totalLength: 'Total length',
       totalLengthValue: '{{meters}} m',
+      bestScore: 'Best',
+      averageScore: 'Avg',
     },
     stats: {
       ariaSummary: 'Course statistics',
-      totalRounds: 'Rounds played',
+      scorecards: 'Scorecards',
       uniquePlayers: 'Unique players',
+      totalThrows: 'Total throws',
+      averageNet: 'Avg net result',
     },
     detail: {
       notFoundTitle: 'Course not found',

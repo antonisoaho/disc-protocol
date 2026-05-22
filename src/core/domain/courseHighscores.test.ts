@@ -194,8 +194,14 @@ describe('computeCourseHighscores', () => {
   })
 })
 
+const threeHoleTemplate = [
+  { number: 1, par: 3 },
+  { number: 2, par: 3 },
+  { number: 3, par: 3 },
+]
+
 describe('computeCourseOverviewStats', () => {
-  it('counts full-round entries and unique players for the matching course', () => {
+  it('counts distinct scorecards (one round shared by N players is still one)', () => {
     const rounds = asItems([
       makeRound({
         participantIds: ['alice', 'bob'],
@@ -209,17 +215,90 @@ describe('computeCourseOverviewStats', () => {
         participantHoleScores: { alice: fullHoles('alice', [3, 3, 4]) },
       }),
     ])
-    expect(computeCourseOverviewStats(rounds, 'course-1', 3)).toEqual({
-      totalFullRounds: 3,
-      uniquePlayers: 2,
-    })
+    const result = computeCourseOverviewStats(rounds, 'course-1', threeHoleTemplate)
+    expect(result.totalScorecards).toBe(2)
+    expect(result.uniquePlayers).toBe(2)
   })
 
-  it('excludes partial rounds and other-course rounds', () => {
+  it('sums total throws across every scored hole', () => {
+    const rounds = asItems([
+      makeRound({
+        participantIds: ['alice', 'bob'],
+        participantHoleScores: {
+          alice: fullHoles('alice', [3, 3, 3]),
+          bob: fullHoles('bob', [4, 4, 4]),
+        },
+      }),
+    ])
+    const result = computeCourseOverviewStats(rounds, 'course-1', threeHoleTemplate)
+    expect(result.totalThrows).toBe(21)
+  })
+
+  it('averages net delta across full participant-rounds', () => {
+    const rounds = asItems([
+      makeRound({
+        participantIds: ['alice'],
+        participantHoleScores: { alice: fullHoles('alice', [3, 4, 3]) },
+      }),
+      makeRound({
+        participantIds: ['bob'],
+        participantHoleScores: { bob: fullHoles('bob', [5, 5, 5]) },
+      }),
+    ])
+    const result = computeCourseOverviewStats(rounds, 'course-1', threeHoleTemplate)
+    expect(result.averageNetDelta).toBeCloseTo((1 + 6) / 2, 5)
+  })
+
+  it('returns null averageNetDelta when there are no full participant-rounds', () => {
     const rounds = asItems([
       makeRound({
         participantIds: ['alice'],
         participantHoleScores: { alice: fullHoles('alice', [3, 3]) },
+      }),
+    ])
+    const result = computeCourseOverviewStats(rounds, 'course-1', threeHoleTemplate)
+    expect(result.averageNetDelta).toBeNull()
+  })
+
+  it('exposes best and average score per hole when data exists', () => {
+    const rounds = asItems([
+      makeRound({
+        participantIds: ['alice', 'bob'],
+        participantHoleScores: {
+          alice: fullHoles('alice', [3, 4, 3]),
+          bob: fullHoles('bob', [2, 5, 4]),
+        },
+      }),
+      makeRound({
+        participantIds: ['carol'],
+        participantHoleScores: { carol: fullHoles('carol', [4, 3, 5]) },
+      }),
+    ])
+    const result = computeCourseOverviewStats(rounds, 'course-1', threeHoleTemplate)
+    const hole1 = result.holeStats.find((h) => h.number === 1)!
+    expect(hole1.bestScore).toBe(2)
+    expect(hole1.averageScore).toBeCloseTo((3 + 2 + 4) / 3, 5)
+    expect(hole1.sampleCount).toBe(3)
+    const hole2 = result.holeStats.find((h) => h.number === 2)!
+    expect(hole2.bestScore).toBe(3)
+    expect(hole2.averageScore).toBeCloseTo((4 + 5 + 3) / 3, 5)
+  })
+
+  it('reports null best/average for holes with no samples', () => {
+    const result = computeCourseOverviewStats([], 'course-1', threeHoleTemplate)
+    for (const hole of result.holeStats) {
+      expect(hole.bestScore).toBeNull()
+      expect(hole.averageScore).toBeNull()
+      expect(hole.sampleCount).toBe(0)
+    }
+  })
+
+  it('ignores rounds without completedAt and rounds on other courses', () => {
+    const rounds = asItems([
+      makeRound({
+        completedAt: null,
+        participantIds: ['alice'],
+        participantHoleScores: { alice: fullHoles('alice', [3, 3, 3]) },
       }),
       makeRound({
         courseId: 'course-2',
@@ -227,9 +306,12 @@ describe('computeCourseOverviewStats', () => {
         participantHoleScores: { carol: fullHoles('carol', [3, 3, 3]) },
       }),
     ])
-    expect(computeCourseOverviewStats(rounds, 'course-1', 3)).toEqual({
-      totalFullRounds: 0,
+    const result = computeCourseOverviewStats(rounds, 'course-1', threeHoleTemplate)
+    expect(result).toMatchObject({
+      totalScorecards: 0,
       uniquePlayers: 0,
+      totalThrows: 0,
+      averageNetDelta: null,
     })
   })
 
@@ -242,23 +324,9 @@ describe('computeCourseOverviewStats', () => {
         participantHoleScores: { alice: fullHoles('alice', [3, 3, 3]) },
       }),
     ])
-    expect(computeCourseOverviewStats(rounds, 'course-1', 3)).toEqual({
-      totalFullRounds: 1,
-      uniquePlayers: 1,
-    })
-  })
-
-  it('ignores rounds without completedAt', () => {
-    const rounds = asItems([
-      makeRound({
-        completedAt: null,
-        participantIds: ['alice'],
-        participantHoleScores: { alice: fullHoles('alice', [3, 3, 3]) },
-      }),
-    ])
-    expect(computeCourseOverviewStats(rounds, 'course-1', 3)).toEqual({
-      totalFullRounds: 0,
-      uniquePlayers: 0,
-    })
+    const result = computeCourseOverviewStats(rounds, 'course-1', threeHoleTemplate)
+    expect(result.totalScorecards).toBe(1)
+    expect(result.uniquePlayers).toBe(1)
+    expect(result.totalThrows).toBe(9)
   })
 })
