@@ -207,7 +207,7 @@ export const commonSv = {
     },
     stats: {
       ariaSummary: 'Banstatistik',
-      scorecards: 'Scorekort',
+      totalRounds: 'Totalt antal rundor',
       uniquePlayers: 'Unika spelare',
       totalThrows: 'Totalt antal kast',
       averageNet: 'Snitt mot par',
@@ -449,6 +449,8 @@ export const commonSv = {
     bestVsPar: 'Bästa mot par',
     avgVsPar: 'Snitt mot par',
     roundsPlayed: 'Spelade rundor',
+    totalThrows: 'Totalt antal kast',
+    totalMeters: 'Spelade meter',
     trendCaption: 'Slag mot par per runda',
     trendAria: 'Diagram över slag mot par för avslutade rundor',
     noCompletedRounds: 'Slutför en runda för att se trenden här.',

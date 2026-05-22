@@ -205,7 +205,7 @@ export const commonEn = {
     },
     stats: {
       ariaSummary: 'Course statistics',
-      scorecards: 'Scorecards',
+      totalRounds: 'Total rounds',
       uniquePlayers: 'Unique players',
       totalThrows: 'Total throws',
       averageNet: 'Avg net result',
@@ -448,6 +448,8 @@ export const commonEn = {
     bestVsPar: 'Best vs par',
     avgVsPar: 'Average vs par',
     roundsPlayed: 'Rounds played',
+    totalThrows: 'Total throws',
+    totalMeters: 'Meters played',
     trendCaption: 'Strokes vs par by round',
     trendAria: 'Chart of strokes versus par over completed rounds',
     noCompletedRounds: 'Complete a round to see your trend here.',

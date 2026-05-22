@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   orderBy,
@@ -74,6 +75,18 @@ export function subscribeTemplates(
 }
 
 export type RoundHoleLengthChoice = 9 | 18
+
+/** One-shot fetch for a single template; returns null when the doc is missing. */
+export async function fetchTemplateHoles(
+  courseId: string,
+  templateId: string,
+): Promise<CourseHoleTemplate[] | null> {
+  const ref = doc(db, COLLECTIONS.courses, courseId, COLLECTIONS.templates, templateId)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return null
+  const data = snap.data() as CourseTemplateDoc
+  return data.holes ?? []
+}
 
 /**
  * Picks the layout used for scoring: `isDefault` template, else first by `orderBy('label')` snapshot order.

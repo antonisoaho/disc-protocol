@@ -8,6 +8,9 @@ import {
   listParticipantPlayedCourses,
   listParticipantRoundDeltasChronological,
 } from '@core/domain/roundAnalytics'
+import { computeProfileTotals, formatMetersPlayed } from '@core/domain/profileTotals'
+import { fetchTemplateHoles } from '@core/domain/courseData'
+import type { CourseHoleTemplate } from '@core/domain/course'
 import { subscribeMyRounds, type RoundListItem } from '@core/domain/rounds'
 import { subscribeUserDirectory, type UserDirectoryEntry } from '@core/users/userDirectory'
 import { translateUserError } from '@common/i18n/translateError'
@@ -64,6 +67,9 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
   const { t, i18n } = useTranslation('common')
   const [state, dispatch] = useReducer(dashboardReducer, initialDashboardState)
   const { items, directoryEntries, loadError } = state
+  const [templateHolesByTemplateId, setTemplateHolesByTemplateId] = useState<
+    Map<string, CourseHoleTemplate[]>
+  >(new Map())
 
   useEffect(() => {
     const unsubRounds = subscribeMyRounds(
@@ -99,6 +105,51 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
     }
     return profileUid
   }, [directoryEntries, profileUid, readOnly, viewer.displayName, viewer.email, viewer.uid])
+
+  useEffect(() => {
+    const pending: Array<{ courseId: string; templateId: string }> = []
+    const seen = new Set<string>()
+    for (const { data } of items) {
+      if (data.courseSource === 'fresh') continue
+      if (!data.courseId || !data.templateId) continue
+      if (templateHolesByTemplateId.has(data.templateId)) continue
+      if (seen.has(data.templateId)) continue
+      seen.add(data.templateId)
+      pending.push({ courseId: data.courseId, templateId: data.templateId })
+    }
+    if (pending.length === 0) return
+
+    let cancelled = false
+    void Promise.all(
+      pending.map(async ({ courseId, templateId }) => {
+        const holes = await fetchTemplateHoles(courseId, templateId).catch(() => null)
+        return { templateId, holes: holes ?? [] }
+      }),
+    ).then((results) => {
+      if (cancelled) return
+      setTemplateHolesByTemplateId((prev) => {
+        const next = new Map(prev)
+        for (const { templateId, holes } of results) {
+          next.set(templateId, holes)
+        }
+        return next
+      })
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [items, templateHolesByTemplateId])
+
+  const profileTotals = useMemo(
+    () =>
+      computeProfileTotals(
+        items.map((row) => row.data),
+        profileUid,
+        templateHolesByTemplateId,
+      ),
+    [items, profileUid, templateHolesByTemplateId],
+  )
 
   const playedCourses = useMemo(
     () => listParticipantPlayedCourses(items, profileUid),
@@ -190,6 +241,18 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
         <div className="dashboard-home__stat">
           <span className="dashboard-home__stat-label">{t('dashboard.roundsPlayed')}</span>
           <span className="dashboard-home__stat-value">{stats.count}</span>
+        </div>
+        <div className="dashboard-home__stat">
+          <span className="dashboard-home__stat-label">{t('dashboard.totalThrows')}</span>
+          <span className="dashboard-home__stat-value">
+            {profileTotals.totalThrows > 0 ? profileTotals.totalThrows : '—'}
+          </span>
+        </div>
+        <div className="dashboard-home__stat">
+          <span className="dashboard-home__stat-label">{t('dashboard.totalMeters')}</span>
+          <span className="dashboard-home__stat-value">
+            {formatMetersPlayed(profileTotals.totalMeters)}
+          </span>
         </div>
       </div>
 
