@@ -111,4 +111,29 @@ describe('normalizeHoleScoreUpdate', () => {
       ),
     ).toThrow(ScoreProtocolValidationError)
   })
+
+  it('rejects strokes exceeding par + 5', () => {
+    expect(() =>
+      normalizeHoleScoreUpdate({
+        holeNumber: 1,
+        strokes: 9,
+        par: 3,
+      }),
+    ).toThrow(ScoreProtocolValidationError)
+  })
+
+  it('accepts strokes equal to par + 5', () => {
+    expect(
+      normalizeHoleScoreUpdate({
+        holeNumber: 1,
+        strokes: 8,
+        par: 3,
+      }),
+    ).toEqual({
+      holeNumber: 1,
+      holeKey: '1',
+      strokes: 8,
+      par: 3,
+    })
+  })
 })
