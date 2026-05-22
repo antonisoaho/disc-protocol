@@ -1,0 +1,27 @@
+@use '../variables' as *;
+
+// BEM: course-detail — single-course route view with back button and stacked panels.
+
+.course-detail {
+  display: flex;
+  flex-direction: column;
+  gap: $layout-section-gap;
+}
+
+.course-detail__back {
+  align-self: flex-start;
+  padding: $space-2 $space-3;
+  font-size: 0.875rem;
+}
+
+.public-player-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: $layout-section-gap;
+}
+
+.public-player-dashboard__back {
+  align-self: flex-start;
+  padding: $space-2 $space-3;
+  font-size: 0.875rem;
+}

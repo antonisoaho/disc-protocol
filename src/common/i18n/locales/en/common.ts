@@ -145,6 +145,7 @@ export const commonEn = {
       addTemplate: 'Add template',
       saveTemplate: 'Save template',
       add: 'Add',
+      back: '← Back to courses',
     },
     templateMeta: {
       holeCount_one: '{{count}} hole',
@@ -204,6 +205,10 @@ export const commonEn = {
       ariaSummary: 'Course statistics',
       totalRounds: 'Rounds played',
       uniquePlayers: 'Unique players',
+    },
+    detail: {
+      notFoundTitle: 'Course not found',
+      notFound: 'This course is not available anymore.',
     },
   },
   scoring: {
@@ -515,6 +520,7 @@ export const commonEn = {
       saving: 'Saving…',
       follow: 'Follow',
       unfollow: 'Unfollow',
+      back: '← Back to players',
     },
     errors: {
       updateFollowRelationship: 'Could not update follow relationship.',

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useReducer, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { CoursePicker } from '@modules/courses/coursesView'
-import type { CourseRoundSelection } from '@core/domain/courseData'
+import { CourseDetailView } from '@modules/courses/courseDetailView'
 import { DashboardHome } from '@modules/dashboard/dashboardView'
 import { PublicPlayerDashboard } from '@modules/dashboard/publicPlayerDashboardView'
 import { AuthPanel } from '@modules/auth/authView'
@@ -75,7 +75,6 @@ export function ProtectedApp() {
   const { theme, toggleTheme } = useTheme()
   const { user, loading, signOut, userProfileProvisionError, retryUserProfileProvision } = useAuth()
   const [signOutError, setSignOutError] = useState<string | null>(null)
-  const [selectedCourseTemplate, setSelectedCourseTemplate] = useState<CourseRoundSelection | null>(null)
   const [favoriteState, dispatchFavorite] = useReducer(favoriteReducer, initialFavoriteState)
 
   useEffect(() => {
@@ -246,11 +245,17 @@ export function ProtectedApp() {
               element={
                 <div className="app-shell__flow">
                   <CoursePicker
-                    selection={selectedCourseTemplate}
-                    onSelectionChange={setSelectedCourseTemplate}
                     favoriteCourseIds={favoriteState.courseIds}
                     onToggleFavoriteCourse={onToggleFavoriteCourse}
                   />
+                </div>
+              }
+            />
+            <Route
+              path="/courses/:courseId"
+              element={
+                <div className="app-shell__flow">
+                  <CourseDetailView />
                 </div>
               }
             />
