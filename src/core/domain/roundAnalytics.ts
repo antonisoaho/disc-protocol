@@ -151,7 +151,7 @@ function isCompletedRound(round: RoundDoc): boolean {
   return round.completedAt !== null
 }
 
-function readParticipantHoleScores(round: RoundDoc) {
+export function readParticipantHoleScores(round: RoundDoc) {
   const next: Record<string, Record<string, { strokes: number; par: number }>> = {}
   const participantIdSet = new Set(round.participantIds)
 

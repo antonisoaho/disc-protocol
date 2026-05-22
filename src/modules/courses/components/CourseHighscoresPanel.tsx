@@ -1,17 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { translateUserError } from '@common/i18n/translateError'
-import {
-  computeCourseHighscores,
-  computeCourseOverviewStats,
-  type CourseHighscoreEntry,
+import type {
+  CourseHighscoreEntry,
+  CourseOverviewStats,
 } from '@core/domain/courseHighscores'
-import { subscribeCourseRounds, type RoundListItem } from '@core/domain/rounds'
-import { subscribeUserDirectory, type UserDirectoryEntry } from '@core/users/userDirectory'
 
 type Props = {
-  courseId: string
-  templateHoleCount: number
+  entries: CourseHighscoreEntry[]
+  stats: CourseOverviewStats
+  loadError: string | null
+  resolveDisplayName: (uid: string) => string
 }
 
 function formatDelta(delta: number): string {
@@ -27,64 +24,15 @@ function deltaTokenClass(delta: number): string {
   return 'course-highscores__delta--double-bogey-plus'
 }
 
-type RoundsState = {
-  courseId: string
-  rounds: RoundListItem[]
-  loadError: string | null
+function formatAverageDelta(delta: number | null): string {
+  if (delta === null) return '—'
+  if (delta === 0) return 'E'
+  const rounded = Math.round(delta * 10) / 10
+  return rounded > 0 ? `+${rounded}` : `${rounded}`
 }
 
-export function CourseHighscoresPanel({ courseId, templateHoleCount }: Props) {
+export function CourseHighscoresPanel({ entries, stats, loadError, resolveDisplayName }: Props) {
   const { t } = useTranslation('common')
-  const [roundsState, setRoundsState] = useState<RoundsState>({
-    courseId,
-    rounds: [],
-    loadError: null,
-  })
-  const [directory, setDirectory] = useState<UserDirectoryEntry[]>([])
-
-  useEffect(() => {
-    const unsub = subscribeCourseRounds(
-      courseId,
-      (items) => setRoundsState({ courseId, rounds: items, loadError: null }),
-      (err) =>
-        setRoundsState({ courseId, rounds: [], loadError: translateUserError(t, err.message) }),
-    )
-    return () => unsub()
-  }, [courseId, t])
-
-  const loadError = roundsState.courseId === courseId ? roundsState.loadError : null
-
-  useEffect(() => {
-    const unsub = subscribeUserDirectory(
-      (entries) => setDirectory(entries),
-      () => {},
-    )
-    return () => unsub()
-  }, [])
-
-  const entries = useMemo(() => {
-    const items = roundsState.courseId === courseId ? roundsState.rounds : []
-    return computeCourseHighscores(items, courseId, templateHoleCount)
-  }, [roundsState, courseId, templateHoleCount])
-
-  const stats = useMemo(() => {
-    const items = roundsState.courseId === courseId ? roundsState.rounds : []
-    return computeCourseOverviewStats(items, courseId, templateHoleCount)
-  }, [roundsState, courseId, templateHoleCount])
-
-  const displayNameByUid = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const entry of directory) {
-      map.set(entry.uid, entry.displayName)
-    }
-    return map
-  }, [directory])
-
-  function resolveDisplayName(uid: string): string {
-    const name = displayNameByUid.get(uid)
-    if (name && name.trim().length > 0) return name
-    return t('courses.highscores.unknownPlayer')
-  }
 
   return (
     <section
@@ -96,12 +44,20 @@ export function CourseHighscoresPanel({ courseId, templateHoleCount }: Props) {
       </h3>
       <dl className="course-highscores__stats" aria-label={t('courses.stats.ariaSummary')}>
         <div className="course-highscores__stat">
-          <dt className="course-highscores__stat-label">{t('courses.stats.totalRounds')}</dt>
-          <dd className="course-highscores__stat-value">{stats.totalFullRounds}</dd>
+          <dt className="course-highscores__stat-label">{t('courses.stats.scorecards')}</dt>
+          <dd className="course-highscores__stat-value">{stats.totalScorecards}</dd>
         </div>
         <div className="course-highscores__stat">
           <dt className="course-highscores__stat-label">{t('courses.stats.uniquePlayers')}</dt>
           <dd className="course-highscores__stat-value">{stats.uniquePlayers}</dd>
+        </div>
+        <div className="course-highscores__stat">
+          <dt className="course-highscores__stat-label">{t('courses.stats.totalThrows')}</dt>
+          <dd className="course-highscores__stat-value">{stats.totalThrows}</dd>
+        </div>
+        <div className="course-highscores__stat">
+          <dt className="course-highscores__stat-label">{t('courses.stats.averageNet')}</dt>
+          <dd className="course-highscores__stat-value">{formatAverageDelta(stats.averageNetDelta)}</dd>
         </div>
       </dl>
       {loadError ? (
@@ -114,7 +70,7 @@ export function CourseHighscoresPanel({ courseId, templateHoleCount }: Props) {
       ) : null}
       {entries.length > 0 ? (
         <ol className="course-highscores__list">
-          {entries.map((entry: CourseHighscoreEntry, index) => (
+          {entries.map((entry, index) => (
             <li key={entry.uid} className="course-highscores__row">
               <span className="course-highscores__rank">{index + 1}</span>
               <span className="course-highscores__name">{resolveDisplayName(entry.uid)}</span>

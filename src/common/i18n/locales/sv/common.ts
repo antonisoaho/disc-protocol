@@ -202,11 +202,15 @@ export const commonSv = {
       title: 'Översikt',
       totalLength: 'Total längd',
       totalLengthValue: '{{meters}} m',
+      bestScore: 'Bäst',
+      averageScore: 'Snitt',
     },
     stats: {
       ariaSummary: 'Banstatistik',
-      totalRounds: 'Spelade rundor',
+      scorecards: 'Scorekort',
       uniquePlayers: 'Unika spelare',
+      totalThrows: 'Totalt antal kast',
+      averageNet: 'Snitt mot par',
     },
     detail: {
       notFoundTitle: 'Banan hittades inte',
