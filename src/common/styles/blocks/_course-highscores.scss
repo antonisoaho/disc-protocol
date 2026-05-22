@@ -1,0 +1,79 @@
+@use 'sass:map';
+@use '../variables' as *;
+
+// BEM: course-highscores — top-3 leaderboard panel inside the course details column.
+
+.course-highscores {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+}
+
+.course-highscores__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+}
+
+.course-highscores__row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: $space-3;
+  padding: $space-2 $space-3;
+  border: 1px solid var(--border);
+  border-radius: $radius-sm;
+  background: var(--surface-bg);
+}
+
+.course-highscores__rank {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.25rem;
+  color: var(--text);
+}
+
+.course-highscores__name {
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-highscores__score {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.course-highscores__delta {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  padding: $space-1 $space-2;
+  border-radius: $radius-sm;
+  border: 1px solid currentColor;
+  background: color-mix(in srgb, currentColor 10%, var(--surface-bg));
+}
+
+.course-highscores__delta--eagle {
+  color: map.get($score-color, eagle);
+}
+
+.course-highscores__delta--birdie {
+  color: map.get($score-color, birdie);
+}
+
+.course-highscores__delta--par {
+  color: map.get($score-color, par);
+}
+
+.course-highscores__delta--bogey {
+  color: map.get($score-color, bogey);
+}
+
+.course-highscores__delta--double-bogey-plus {
+  color: map.get($score-color, double-bogey-plus);
+}
