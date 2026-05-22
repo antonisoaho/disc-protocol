@@ -490,6 +490,7 @@ export const commonSv = {
     },
     scorecard: {
       backHome: '← Tillbaka till översikten',
+      backToPlayer: '← Tillbaka till spelaren',
       notFoundOrNoAccess: 'Rundan finns inte. Den kan ha tagits bort eller så är du inte deltagare.',
       readOnlyTitle: 'Scorekort · {{courseName}}',
       readOnlyMetaStarted: 'Startade {{startedAt}}',

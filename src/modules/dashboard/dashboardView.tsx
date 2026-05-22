@@ -33,19 +33,30 @@ type DashboardState = {
   items: RoundListItem[]
   directoryEntries: UserDirectoryEntry[]
   loadError: string | null
+  /** Tracks per-profile snapshot arrival so stats can show a skeleton until the first read lands. */
+  loadedProfileUid: string | null
 }
 
 type DashboardAction =
-  | { type: 'roundsOk'; items: RoundListItem[] }
-  | { type: 'roundsErr'; message: string }
+  | { type: 'roundsOk'; profileUid: string; items: RoundListItem[] }
+  | { type: 'roundsErr'; profileUid: string; message: string }
   | { type: 'directoryOk'; entries: UserDirectoryEntry[] }
+  | { type: 'resetForProfile'; profileUid: string }
 
 function dashboardReducer(state: DashboardState, action: DashboardAction): DashboardState {
   switch (action.type) {
+    case 'resetForProfile':
+      if (state.loadedProfileUid === action.profileUid) return state
+      return { ...state, items: [], loadError: null, loadedProfileUid: null }
     case 'roundsOk':
-      return { ...state, items: action.items, loadError: null }
+      return {
+        ...state,
+        items: action.items,
+        loadError: null,
+        loadedProfileUid: action.profileUid,
+      }
     case 'roundsErr':
-      return { ...state, loadError: action.message }
+      return { ...state, loadError: action.message, loadedProfileUid: action.profileUid }
     case 'directoryOk':
       return { ...state, directoryEntries: action.entries }
     default:
@@ -57,6 +68,7 @@ const initialDashboardState: DashboardState = {
   items: [],
   directoryEntries: [],
   loadError: null,
+  loadedProfileUid: null,
 }
 
 function formatStartedAt(ts: Timestamp, locale: string): string {
@@ -71,18 +83,24 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
   const { t, i18n } = useTranslation('common')
   const [state, dispatch] = useReducer(dashboardReducer, initialDashboardState)
   const { items, directoryEntries, loadError } = state
+  const statsLoaded = state.loadedProfileUid === profileUid
   const [templateHolesByTemplateId, setTemplateHolesByTemplateId] = useState<
     Map<string, CourseHoleTemplate[]>
   >(new Map())
 
   useEffect(() => {
+    dispatch({ type: 'resetForProfile', profileUid })
     const unsubRounds = subscribeMyRounds(
       profileUid,
       (next) => {
-        dispatch({ type: 'roundsOk', items: next })
+        dispatch({ type: 'roundsOk', profileUid, items: next })
       },
       (err) => {
-        dispatch({ type: 'roundsErr', message: translateUserError(t, err.message) })
+        dispatch({
+          type: 'roundsErr',
+          profileUid,
+          message: translateUserError(t, err.message),
+        })
       },
     )
     const unsubDir = subscribeUserDirectory(
@@ -268,38 +286,62 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
       <div className="dashboard-home__stats" role="group" aria-label={t('dashboard.statsAria')}>
         <div className="dashboard-home__stat">
           <span className="dashboard-home__stat-label">{t('dashboard.bestVsPar')}</span>
-          <span className="dashboard-home__stat-value">
-            {stats.best === null ? '—' : stats.best > 0 ? `+${stats.best}` : `${stats.best}`}
-          </span>
+          {statsLoaded ? (
+            <span className="dashboard-home__stat-value">
+              {stats.best === null ? '—' : stats.best > 0 ? `+${stats.best}` : `${stats.best}`}
+            </span>
+          ) : (
+            <span className="dashboard-home__stat-skeleton" aria-hidden="true" />
+          )}
         </div>
         <div className="dashboard-home__stat">
           <span className="dashboard-home__stat-label">{t('dashboard.avgVsPar')}</span>
-          <span className="dashboard-home__stat-value">
-            {stats.average === null
-              ? '—'
-              : `${stats.average > 0 ? '+' : ''}${stats.average.toFixed(1)}`}
-          </span>
+          {statsLoaded ? (
+            <span className="dashboard-home__stat-value">
+              {stats.average === null
+                ? '—'
+                : `${stats.average > 0 ? '+' : ''}${stats.average.toFixed(1)}`}
+            </span>
+          ) : (
+            <span className="dashboard-home__stat-skeleton" aria-hidden="true" />
+          )}
         </div>
         <div className="dashboard-home__stat">
           <span className="dashboard-home__stat-label">{t('dashboard.roundsPlayed')}</span>
-          <span className="dashboard-home__stat-value">{stats.count}</span>
+          {statsLoaded ? (
+            <span className="dashboard-home__stat-value">{stats.count}</span>
+          ) : (
+            <span className="dashboard-home__stat-skeleton" aria-hidden="true" />
+          )}
         </div>
         <div className="dashboard-home__stat">
           <span className="dashboard-home__stat-label">{t('dashboard.totalThrows')}</span>
-          <span className="dashboard-home__stat-value">
-            {profileTotals.totalThrows > 0 ? profileTotals.totalThrows : '—'}
-          </span>
+          {statsLoaded ? (
+            <span className="dashboard-home__stat-value">
+              {profileTotals.totalThrows > 0 ? profileTotals.totalThrows : '—'}
+            </span>
+          ) : (
+            <span className="dashboard-home__stat-skeleton" aria-hidden="true" />
+          )}
         </div>
         <div className="dashboard-home__stat">
           <span className="dashboard-home__stat-label">{t('dashboard.totalMeters')}</span>
-          <span className="dashboard-home__stat-value">
-            {formatMetersPlayed(profileTotals.totalMeters)}
-          </span>
+          {statsLoaded ? (
+            <span className="dashboard-home__stat-value">
+              {formatMetersPlayed(profileTotals.totalMeters)}
+            </span>
+          ) : (
+            <span className="dashboard-home__stat-skeleton" aria-hidden="true" />
+          )}
         </div>
-        {!readOnly && winsSummary.comparableRounds > 0 ? (
+        {!statsLoaded || winsSummary.comparableRounds > 0 ? (
           <div className="dashboard-home__stat">
             <span className="dashboard-home__stat-label">{t('dashboard.wins')}</span>
-            <span className="dashboard-home__stat-value">{winsSummary.wins}</span>
+            {statsLoaded ? (
+              <span className="dashboard-home__stat-value">{winsSummary.wins}</span>
+            ) : (
+              <span className="dashboard-home__stat-skeleton" aria-hidden="true" />
+            )}
           </div>
         ) : null}
       </div>

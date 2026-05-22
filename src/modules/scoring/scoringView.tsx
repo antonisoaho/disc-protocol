@@ -44,7 +44,9 @@ export function ScoringView({ user }: Props) {
   return (
     <div className="app-shell__flow">
       <NavLink to={backPath} className="app-shell__link dashboard-home__back">
-        {t('rounds.scorecard.backHome')}
+        {backPath.startsWith('/players/')
+          ? t('rounds.scorecard.backToPlayer')
+          : t('rounds.scorecard.backHome')}
       </NavLink>
       {load.status === 'loading' ? null : load.status === 'missing' || access === 'denied' ? (
         <p className="scoring-panel__error" role="alert">
