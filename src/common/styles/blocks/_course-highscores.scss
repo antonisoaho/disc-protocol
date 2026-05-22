@@ -9,6 +9,39 @@
   gap: $space-3;
 }
 
+.course-highscores__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: $space-3;
+  margin: 0;
+  padding: 0;
+}
+
+.course-highscores__stat {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+  padding: $space-2 $space-3;
+  border: 1px solid var(--border);
+  border-radius: $radius-sm;
+  background: var(--surface-bg);
+}
+
+.course-highscores__stat-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.course-highscores__stat-value {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
 .course-highscores__list {
   list-style: none;
   margin: 0;

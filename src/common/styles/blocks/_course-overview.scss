@@ -1,0 +1,74 @@
+@use '../variables' as *;
+
+// BEM: course-overview — read-only course info card shown to non-editors.
+
+.course-overview {
+  display: flex;
+  flex-direction: column;
+  gap: $space-4;
+}
+
+.course-overview__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: $space-3;
+  margin: 0;
+  padding: 0;
+}
+
+.course-overview__summary-row {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+  padding: $space-2 $space-3;
+  border: 1px solid var(--border);
+  border-radius: $radius-sm;
+  background: var(--surface-bg);
+}
+
+.course-overview__summary-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.course-overview__summary-value {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.course-overview__hole-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+
+  th,
+  td {
+    padding: $space-2 $space-3;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+
+  th {
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+
+  td {
+    color: var(--text);
+  }
+}
+
+.course-overview__hole-num {
+  font-weight: 700;
+  color: var(--text-muted);
+  width: 3rem;
+}

@@ -197,6 +197,16 @@ export const commonSv = {
       deltaToPar: '{{delta}} mot par',
       unknownPlayer: 'Okänd spelare',
     },
+    overview: {
+      title: 'Översikt',
+      totalLength: 'Total längd',
+      totalLengthValue: '{{meters}} m',
+    },
+    stats: {
+      ariaSummary: 'Banstatistik',
+      totalRounds: 'Spelade rundor',
+      uniquePlayers: 'Unika spelare',
+    },
   },
   scoring: {
     title: 'Rundor och poäng',

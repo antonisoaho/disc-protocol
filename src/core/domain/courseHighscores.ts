@@ -80,3 +80,37 @@ export function computeCourseHighscores(
 
   return [...bestByUid.values()].sort(compareEntries).slice(0, limit)
 }
+
+export type CourseOverviewStats = {
+  /** Number of (round, participant) pairs that played every hole on this course. */
+  totalFullRounds: number
+  /** Distinct registered uids with at least one full round on this course. */
+  uniquePlayers: number
+}
+
+/**
+ * Aggregate counts derived from the same eligibility rules as
+ * `computeCourseHighscores`. Useful for a stats strip above the leaderboard.
+ */
+export function computeCourseOverviewStats(
+  items: IdRound[],
+  courseId: string,
+  templateHoleCount: number,
+): CourseOverviewStats {
+  let totalFullRounds = 0
+  const uniqueUids = new Set<string>()
+
+  for (const { data } of items) {
+    if (data.completedAt === null) continue
+    if (!matchesCourse(data, courseId)) continue
+
+    for (const uid of data.participantIds) {
+      const aggregate = aggregateParticipantRound(data, uid)
+      if (aggregate.scoredHoles !== templateHoleCount) continue
+      totalFullRounds += 1
+      uniqueUids.add(uid)
+    }
+  }
+
+  return { totalFullRounds, uniquePlayers: uniqueUids.size }
+}

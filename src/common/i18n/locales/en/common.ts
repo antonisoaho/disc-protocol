@@ -195,6 +195,16 @@ export const commonEn = {
       deltaToPar: '{{delta}} vs par',
       unknownPlayer: 'Unknown player',
     },
+    overview: {
+      title: 'Overview',
+      totalLength: 'Total length',
+      totalLengthValue: '{{meters}} m',
+    },
+    stats: {
+      ariaSummary: 'Course statistics',
+      totalRounds: 'Rounds played',
+      uniquePlayers: 'Unique players',
+    },
   },
   scoring: {
     title: 'Rounds & scoring',
