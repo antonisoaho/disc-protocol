@@ -420,7 +420,6 @@ export const commonSv = {
       replaceSourceEqualsTarget: 'Välj en annan spelare än den du byter ut.',
       replacementUserRequired: 'Välj en ersättningsspelare.',
       targetNotRoundParticipant: 'Vald deltagare finns inte i den här rundan.',
-      onlyOwnerCanEditParticipant: 'Endast ägaren kan redigera en annan deltagares poäng.',
       roundDoesNotSupportFreshMetadataEdits: 'Den här rundan stöder inte redigering av ny hålmetadata.',
       setHoleCountAndFillMetadata: 'Ange antal hål och fyll i saknad hålmetadata innan rundan slutförs.',
       parRequiredBeforeComplete: 'Par krävs innan rundan kan slutföras.',

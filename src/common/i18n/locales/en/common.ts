@@ -419,7 +419,6 @@ export const commonEn = {
       replaceSourceEqualsTarget: 'Choose a different player than the one you are replacing.',
       replacementUserRequired: 'Choose a replacement player.',
       targetNotRoundParticipant: 'Selected participant is not in this round.',
-      onlyOwnerCanEditParticipant: 'Only the owner can edit another participant score.',
       roundDoesNotSupportFreshMetadataEdits: 'This round does not support fresh hole metadata edits.',
       setHoleCountAndFillMetadata: 'Set a hole count and fill missing hole metadata before completing this round.',
       parRequiredBeforeComplete: 'Par is required before completing the round.',

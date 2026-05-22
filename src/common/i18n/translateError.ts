@@ -7,9 +7,6 @@ export function translateUserError(t: TFunction<'common'>, message: string): str
   if (trimmed === 'Round not found') return t('scoring.errors.roundNotFound')
   if (trimmed === 'Not a participant of this round') return t('scoring.errors.notRoundParticipant')
   if (trimmed === 'Target participant is not in this round') return t('scoring.errors.targetNotRoundParticipant')
-  if (trimmed === 'Only owner can edit another participant score') {
-    return t('scoring.errors.onlyOwnerCanEditParticipant')
-  }
   if (trimmed === 'Not permitted to manage this round roster.') {
     return t('scoring.errors.notPermittedToManageRoundRoster')
   }
