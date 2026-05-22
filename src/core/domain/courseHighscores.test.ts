@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { Timestamp } from 'firebase/firestore'
 import type { RoundDoc } from '@core/domain/round'
 import type { IdRound } from '@core/domain/roundAnalytics'
-import { computeCourseHighscores } from '@core/domain/courseHighscores'
+import {
+  computeCourseHighscores,
+  computeCourseOverviewStats,
+} from '@core/domain/courseHighscores'
 
 const ts = {} as Timestamp
 
@@ -188,5 +191,74 @@ describe('computeCourseHighscores', () => {
     ])
     const result = computeCourseHighscores(rounds, 'course-1', 3)
     expect(result.map((r) => r.uid)).toEqual(['alice', 'bob'])
+  })
+})
+
+describe('computeCourseOverviewStats', () => {
+  it('counts full-round entries and unique players for the matching course', () => {
+    const rounds = asItems([
+      makeRound({
+        participantIds: ['alice', 'bob'],
+        participantHoleScores: {
+          alice: fullHoles('alice', [3, 3, 3]),
+          bob: fullHoles('bob', [4, 4, 4]),
+        },
+      }),
+      makeRound({
+        participantIds: ['alice'],
+        participantHoleScores: { alice: fullHoles('alice', [3, 3, 4]) },
+      }),
+    ])
+    expect(computeCourseOverviewStats(rounds, 'course-1', 3)).toEqual({
+      totalFullRounds: 3,
+      uniquePlayers: 2,
+    })
+  })
+
+  it('excludes partial rounds and other-course rounds', () => {
+    const rounds = asItems([
+      makeRound({
+        participantIds: ['alice'],
+        participantHoleScores: { alice: fullHoles('alice', [3, 3]) },
+      }),
+      makeRound({
+        courseId: 'course-2',
+        participantIds: ['carol'],
+        participantHoleScores: { carol: fullHoles('carol', [3, 3, 3]) },
+      }),
+    ])
+    expect(computeCourseOverviewStats(rounds, 'course-1', 3)).toEqual({
+      totalFullRounds: 0,
+      uniquePlayers: 0,
+    })
+  })
+
+  it('counts a promoted-fresh round once with its target course', () => {
+    const rounds = asItems([
+      makeRound({
+        courseId: 'fresh-sentinel',
+        coursePromotion: { status: 'created', targetCourseId: 'course-1' },
+        participantIds: ['alice'],
+        participantHoleScores: { alice: fullHoles('alice', [3, 3, 3]) },
+      }),
+    ])
+    expect(computeCourseOverviewStats(rounds, 'course-1', 3)).toEqual({
+      totalFullRounds: 1,
+      uniquePlayers: 1,
+    })
+  })
+
+  it('ignores rounds without completedAt', () => {
+    const rounds = asItems([
+      makeRound({
+        completedAt: null,
+        participantIds: ['alice'],
+        participantHoleScores: { alice: fullHoles('alice', [3, 3, 3]) },
+      }),
+    ])
+    expect(computeCourseOverviewStats(rounds, 'course-1', 3)).toEqual({
+      totalFullRounds: 0,
+      uniquePlayers: 0,
+    })
   })
 })

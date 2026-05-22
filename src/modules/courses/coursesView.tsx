@@ -16,6 +16,7 @@ import {
 import { filterCoursesForDiscovery, type LatLng } from '@modules/courses/domain/discovery'
 import { CoursePickerTemplatePanel } from '@modules/courses/components/CoursePickerTemplatePanel'
 import { CourseHighscoresPanel } from '@modules/courses/components/CourseHighscoresPanel'
+import { CourseTemplateReadOnly } from '@modules/courses/components/CourseTemplateReadOnly'
 import { normalizeCourseCity, normalizeCourseName, validateCourseName } from '@core/domain/templateDraft'
 
 type Props = {
@@ -371,6 +372,27 @@ export function CoursePicker({
         ) : null}
       </div>
 
+      {activeCourse ? (
+        <header
+          className="course-picker__overview-header"
+          aria-labelledby="course-picker-overview-title"
+        >
+          <h2 id="course-picker-overview-title" className="course-picker__overview-name">
+            {activeCourse.name}
+          </h2>
+          <p className="course-picker__overview-meta">
+            {[
+              activeCourse.city,
+              resolvedTemplate
+                ? t('courses.templateMeta.holeCount', { count: resolvedTemplate.holes.length })
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        </header>
+      ) : null}
+
       <div className="course-picker__main">
         <div className="course-picker__list-column">
           {courses.length === 0 && !listError ? (
@@ -427,7 +449,7 @@ export function CoursePicker({
         </div>
 
         <div className="course-picker__details-column">
-          {user ? (
+          {isAdmin ? (
             <section
               className="course-picker__panel course-picker__panel--create"
               aria-labelledby="course-picker-create-title"
@@ -497,55 +519,56 @@ export function CoursePicker({
               aria-labelledby="course-picker-details-title"
             >
               <h3 id="course-picker-details-title" className="course-picker__panel-title">
-                {t('courses.courseDetailsFor', { courseName: activeCourse.name })}
+                {t('courses.overview.title')}
               </h3>
-              <form className="course-picker__add" onSubmit={(e) => void handleRenameCourse(e)}>
-                <label className="course-picker__add-label" htmlFor="course-picker-course-name">
-                  {t('courses.forms.courseName')}
-                </label>
-                <div className="course-picker__add-row">
-                  <input
-                    id="course-picker-course-name"
-                    value={renameName}
-                    onChange={(e) =>
-                      setRenameDraft({
-                        courseId: activeCourse.id,
-                        name: e.target.value,
-                        city: renameCity,
-                      })
-                    }
-                    autoComplete="off"
-                    disabled={renaming || !isAdmin}
-                  />
-                  <input
-                    id="course-picker-course-city"
-                    aria-label={t('courses.aria.courseCity')}
-                    value={renameCity}
-                    onChange={(e) =>
-                      setRenameDraft({
-                        courseId: activeCourse.id,
-                        name: renameName,
-                        city: e.target.value,
-                      })
-                    }
-                    placeholder={t('courses.forms.cityPlaceholder')}
-                    autoComplete="off"
-                    disabled={renaming || !isAdmin}
-                  />
-                  <button
-                    type="submit"
-                    disabled={renaming || !isAdmin || validateCourseName(renameName) !== null}
-                  >
-                    {renaming ? t('courses.actions.saving') : t('courses.actions.saveName')}
-                  </button>
-                </div>
-                {!isAdmin ? <p className="course-picker__hint">{t('courses.hints.onlyAdminsRename')}</p> : null}
-                {renameError ? (
-                  <p className="course-picker__error" role="alert">
-                    {renameError}
-                  </p>
-                ) : null}
-              </form>
+              {isAdmin ? (
+                <form className="course-picker__add" onSubmit={(e) => void handleRenameCourse(e)}>
+                  <label className="course-picker__add-label" htmlFor="course-picker-course-name">
+                    {t('courses.forms.courseName')}
+                  </label>
+                  <div className="course-picker__add-row">
+                    <input
+                      id="course-picker-course-name"
+                      value={renameName}
+                      onChange={(e) =>
+                        setRenameDraft({
+                          courseId: activeCourse.id,
+                          name: e.target.value,
+                          city: renameCity,
+                        })
+                      }
+                      autoComplete="off"
+                      disabled={renaming}
+                    />
+                    <input
+                      id="course-picker-course-city"
+                      aria-label={t('courses.aria.courseCity')}
+                      value={renameCity}
+                      onChange={(e) =>
+                        setRenameDraft({
+                          courseId: activeCourse.id,
+                          name: renameName,
+                          city: e.target.value,
+                        })
+                      }
+                      placeholder={t('courses.forms.cityPlaceholder')}
+                      autoComplete="off"
+                      disabled={renaming}
+                    />
+                    <button
+                      type="submit"
+                      disabled={renaming || validateCourseName(renameName) !== null}
+                    >
+                      {renaming ? t('courses.actions.saving') : t('courses.actions.saveName')}
+                    </button>
+                  </div>
+                  {renameError ? (
+                    <p className="course-picker__error" role="alert">
+                      {renameError}
+                    </p>
+                  ) : null}
+                </form>
+              ) : null}
               {isAdmin ? (
                 <form className="course-picker__add" onSubmit={(e) => e.preventDefault()}>
                   <label className="course-picker__add-label">{t('courses.deleteCourseLabel')}</label>
@@ -565,9 +588,7 @@ export function CoursePicker({
                     </p>
                   ) : null}
                 </form>
-              ) : (
-                <p className="course-picker__hint">{t('courses.hints.wholeCourseDeleteAdminOnly')}</p>
-              )}
+              ) : null}
 
               {templatesError ? (
                 <p className="course-picker__error" role="alert">
@@ -575,12 +596,19 @@ export function CoursePicker({
                 </p>
               ) : null}
               {resolvedTemplate ? (
-                <CoursePickerTemplatePanel
-                  key={`${activeCourse.id}-${resolvedTemplate.id}`}
-                  courseId={activeCourse.id}
-                  template={resolvedTemplate}
-                  canEdit={canEditActiveTemplate}
-                />
+                canEditActiveTemplate ? (
+                  <CoursePickerTemplatePanel
+                    key={`${activeCourse.id}-${resolvedTemplate.id}`}
+                    courseId={activeCourse.id}
+                    template={resolvedTemplate}
+                    canEdit
+                  />
+                ) : (
+                  <CourseTemplateReadOnly
+                    key={`${activeCourse.id}-${resolvedTemplate.id}-ro`}
+                    template={resolvedTemplate}
+                  />
+                )
               ) : templates.length === 0 && !templatesError ? (
                 <p className="course-picker__empty">{t('courses.empty.noLayouts')}</p>
               ) : null}

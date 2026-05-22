@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { translateUserError } from '@common/i18n/translateError'
 import {
   computeCourseHighscores,
+  computeCourseOverviewStats,
   type CourseHighscoreEntry,
 } from '@core/domain/courseHighscores'
 import { subscribeCourseRounds, type RoundListItem } from '@core/domain/rounds'
@@ -66,6 +67,11 @@ export function CourseHighscoresPanel({ courseId, templateHoleCount }: Props) {
     return computeCourseHighscores(items, courseId, templateHoleCount)
   }, [roundsState, courseId, templateHoleCount])
 
+  const stats = useMemo(() => {
+    const items = roundsState.courseId === courseId ? roundsState.rounds : []
+    return computeCourseOverviewStats(items, courseId, templateHoleCount)
+  }, [roundsState, courseId, templateHoleCount])
+
   const displayNameByUid = useMemo(() => {
     const map = new Map<string, string>()
     for (const entry of directory) {
@@ -88,6 +94,16 @@ export function CourseHighscoresPanel({ courseId, templateHoleCount }: Props) {
       <h3 id="course-highscores-title" className="course-picker__panel-title">
         {t('courses.highscores.title')}
       </h3>
+      <dl className="course-highscores__stats" aria-label={t('courses.stats.ariaSummary')}>
+        <div className="course-highscores__stat">
+          <dt className="course-highscores__stat-label">{t('courses.stats.totalRounds')}</dt>
+          <dd className="course-highscores__stat-value">{stats.totalFullRounds}</dd>
+        </div>
+        <div className="course-highscores__stat">
+          <dt className="course-highscores__stat-label">{t('courses.stats.uniquePlayers')}</dt>
+          <dd className="course-highscores__stat-value">{stats.uniquePlayers}</dd>
+        </div>
+      </dl>
       {loadError ? (
         <p className="course-picker__error" role="alert">
           {loadError}
