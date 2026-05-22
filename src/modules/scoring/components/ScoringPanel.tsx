@@ -836,11 +836,14 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
     }
   }, [roundId, t, uid])
 
+  const canCompleteRound = selected ? selected.data.ownerId === uid || isAdmin : false
   const holeSubmitMode = selectedHoleCount
     ? resolveHoleSubmitMode({ activeHoleNumber, holeCount: selectedHoleCount })
     : null
   const holeSubmitLabel = holeSubmitMode === 'complete'
-    ? t('scoring.buttons.completeRound')
+    ? canCompleteRound
+      ? t('scoring.buttons.completeRound')
+      : t('scoring.buttons.saveLastHole')
     : t('scoring.stepper.nextHoleCta')
 
   const onSubmitHoleForm = useCallback(
@@ -854,7 +857,7 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
           autosaveTimerRef.current = null
         }
         void saveCurrentHole().then((saved) => {
-          if (saved) {
+          if (saved && canCompleteRound) {
             void onComplete()
           }
         })
@@ -866,6 +869,7 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
     [
       activeHoleNumber,
       busy,
+      canCompleteRound,
       effectiveHoleDraft,
       holeSubmitMode,
       navigateToHole,
@@ -1016,10 +1020,12 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
                 {t('scoring.legend')}
               </p>
               <p className="scoring-panel__muted scoring-panel__complete-round-hint">
-                {t('scoring.buttons.completeRoundHint')}
+                {canCompleteRound
+                  ? t('scoring.buttons.completeRoundHint')
+                  : t('scoring.buttons.completeRoundOwnerOnly')}
               </p>
               <div className="scoring-panel__row">
-                {holeSubmitMode !== 'complete' ? (
+                {canCompleteRound && holeSubmitMode !== 'complete' ? (
                   <button
                     type="button"
                     className="scoring-panel__button scoring-panel__button--primary"

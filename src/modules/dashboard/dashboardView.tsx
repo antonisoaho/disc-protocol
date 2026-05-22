@@ -219,6 +219,9 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
         })()
 
   const completedRoundRows = items.filter((row) => row.data.completedAt !== null)
+  const ongoingRoundRows = items.filter(
+    (row) => row.data.completedAt === null && row.data.participantIds.includes(profileUid),
+  )
 
   const mutualVsViewerSummary = useMemo(() => {
     if (!readOnly) return null
@@ -367,6 +370,34 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
             {t('dashboard.browseCourses')}
           </Link>
         </div>
+      ) : null}
+
+      {!readOnly && ongoingRoundRows.length > 0 ? (
+        <>
+          <div className="dashboard-home__rounds-head">
+            <h3 className="dashboard-home__subheading">{t('dashboard.ongoingRounds')}</h3>
+          </div>
+          <ul className="dashboard-home__round-list">
+            {ongoingRoundRows.map(({ id, data }) => (
+              <li key={id} className="dashboard-home__round-row dashboard-home__round-row--ongoing">
+                <Link
+                  to={`/rounds/${id}/scorecard`}
+                  className="dashboard-home__round-link"
+                >
+                  <span className="dashboard-home__round-name">
+                    {data.courseSource === 'fresh'
+                      ? (data.courseDraft?.name ?? t('scoring.rounds.unnamed'))
+                      : (data.courseName ?? t('scoring.rounds.unnamed'))}
+                  </span>
+                  <span className="dashboard-home__round-meta">
+                    {formatStartedAt(data.startedAt, i18n.language)}
+                    {` · ${t('dashboard.ongoingBadge')}`}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
       ) : null}
 
       <div className="dashboard-home__rounds-head">
