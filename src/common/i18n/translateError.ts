@@ -42,14 +42,6 @@ export function translateUserError(t: TFunction<'common'>, message: string): str
     return t('courses.errors.courseNameRequired')
   }
 
-  const strokesCapMatch = trimmed.match(/^strokes must be at most par \+ 5 \(par (\d+), max (\d+)\)\.?$/)
-  if (strokesCapMatch) {
-    return t('scoring.errors.strokesExceedParCap', {
-      par: strokesCapMatch[1],
-      max: strokesCapMatch[2],
-    })
-  }
-
   const parRangeMatch = trimmed.match(/^Par must be an integer in range (\d+)-(\d+)\.?$/)
   if (parRangeMatch) {
     return t('scoring.errors.parRange', {
