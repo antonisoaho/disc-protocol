@@ -1,5 +1,7 @@
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { CourseHoleTemplate } from '@core/domain/course'
+import type { CourseHoleStat } from '@core/domain/courseHighscores'
 import { clampPar, parseLengthMetersInput } from '@core/domain/templateDraft'
 
 type Props = {
@@ -7,10 +9,31 @@ type Props = {
   holes: CourseHoleTemplate[]
   disabled?: boolean
   onChange: (next: CourseHoleTemplate[]) => void
+  holeStats?: CourseHoleStat[]
 }
 
-export function TemplateHoleGrid({ idPrefix, holes, disabled, onChange }: Props) {
+function formatAverage(value: number | null): string {
+  if (value === null) return '—'
+  return (Math.round(value * 10) / 10).toString()
+}
+
+export function TemplateHoleGrid({ idPrefix, holes, disabled, onChange, holeStats }: Props) {
   const { t } = useTranslation('common')
+
+  const statsByHole = useMemo(() => {
+    const map = new Map<number, CourseHoleStat>()
+    if (holeStats) {
+      for (const stat of holeStats) {
+        map.set(stat.number, stat)
+      }
+    }
+    return map
+  }, [holeStats])
+
+  const showStatColumns = useMemo(
+    () => (holeStats ?? []).some((stat) => stat.sampleCount > 0),
+    [holeStats],
+  )
 
   function patchHole(index: number, partial: Partial<CourseHoleTemplate>) {
     onChange(
@@ -34,45 +57,60 @@ export function TemplateHoleGrid({ idPrefix, holes, disabled, onChange }: Props)
             <th scope="col">{t('courses.forms.holeNumber')}</th>
             <th scope="col">{t('courses.forms.holePar')}</th>
             <th scope="col">{t('courses.forms.holeLength')}</th>
+            {showStatColumns ? (
+              <>
+                <th scope="col">{t('courses.overview.bestScore')}</th>
+                <th scope="col">{t('courses.overview.averageScore')}</th>
+              </>
+            ) : null}
           </tr>
         </thead>
         <tbody>
-          {holes.map((hole, index) => (
-            <tr key={hole.number}>
-              <td className="course-picker__hole-num">{hole.number}</td>
-              <td>
-                <input
-                  id={`${idPrefix}-par-${index}`}
-                  className="course-picker__hole-input"
-                  type="number"
-                  min={2}
-                  max={6}
-                  step={1}
-                  value={hole.par}
-                  disabled={disabled}
-                  onChange={(event) => patchHole(index, { par: clampPar(Number(event.target.value)) })}
-                  aria-label={t('courses.aria.holePar', { hole: hole.number })}
-                />
-              </td>
-              <td>
-                <input
-                  id={`${idPrefix}-len-${index}`}
-                  className="course-picker__hole-input course-picker__hole-input--length"
-                  type="number"
-                  min={1}
-                  max={2000}
-                  step={1}
-                  value={hole.lengthMeters ?? ''}
-                  placeholder={t('courses.forms.holeLengthPlaceholder')}
-                  disabled={disabled}
-                  onChange={(event) =>
-                    patchHole(index, { lengthMeters: parseLengthMetersInput(event.target.value) })
-                  }
-                  aria-label={t('courses.aria.holeLength', { hole: hole.number })}
-                />
-              </td>
-            </tr>
-          ))}
+          {holes.map((hole, index) => {
+            const stat = statsByHole.get(hole.number)
+            return (
+              <tr key={hole.number}>
+                <td className="course-picker__hole-num">{hole.number}</td>
+                <td>
+                  <input
+                    id={`${idPrefix}-par-${index}`}
+                    className="course-picker__hole-input"
+                    type="number"
+                    min={2}
+                    max={6}
+                    step={1}
+                    value={hole.par}
+                    disabled={disabled}
+                    onChange={(event) => patchHole(index, { par: clampPar(Number(event.target.value)) })}
+                    aria-label={t('courses.aria.holePar', { hole: hole.number })}
+                  />
+                </td>
+                <td>
+                  <input
+                    id={`${idPrefix}-len-${index}`}
+                    className="course-picker__hole-input course-picker__hole-input--length"
+                    type="number"
+                    min={1}
+                    max={2000}
+                    step={1}
+                    value={hole.lengthMeters ?? ''}
+                    placeholder={t('courses.forms.holeLengthPlaceholder')}
+                    disabled={disabled}
+                    onChange={(event) =>
+                      patchHole(index, { lengthMeters: parseLengthMetersInput(event.target.value) })
+                    }
+                    aria-label={t('courses.aria.holeLength', { hole: hole.number })}
+                  />
+                </td>
+                {showStatColumns ? (
+                  <>
+                    <td>{stat?.bestScore ?? '—'}</td>
+                    <td>{formatAverage(stat?.averageScore ?? null)}</td>
+                  </>
+                ) : null}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

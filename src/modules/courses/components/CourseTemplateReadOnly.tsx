@@ -36,7 +36,7 @@ export function CourseTemplateReadOnly({ template, holeStats }: Props) {
     return map
   }, [holeStats])
 
-  const showStatColumns = (holeStats?.length ?? 0) > 0
+  const showStatColumns = (holeStats ?? []).some((stat) => stat.sampleCount > 0)
 
   return (
     <div className="course-overview">

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { translateUserError } from '@common/i18n/translateError'
 import type { CourseHoleTemplate } from '@core/domain/course'
+import type { CourseHoleStat } from '@core/domain/courseHighscores'
 import { updateTemplate, type CourseTemplateWithId } from '@core/domain/courseData'
 import { TemplateHoleGrid } from '@modules/courses/components/TemplateHoleGrid'
 import { resizeTemplateHoles } from '@core/domain/templateDraft'
@@ -10,9 +11,10 @@ type Props = {
   courseId: string
   template: CourseTemplateWithId
   canEdit: boolean
+  holeStats?: CourseHoleStat[]
 }
 
-export function CoursePickerTemplatePanel({ courseId, template, canEdit }: Props) {
+export function CoursePickerTemplatePanel({ courseId, template, canEdit, holeStats }: Props) {
   const { t } = useTranslation('common')
   const [draft, setDraft] = useState(() => ({
     label: template.label,
@@ -110,6 +112,7 @@ export function CoursePickerTemplatePanel({ courseId, template, canEdit }: Props
         holes={gridHoles}
         disabled={!canEdit}
         onChange={setHolesDraft}
+        holeStats={holeStats}
       />
       {canEdit ? (
         <div className="course-picker__add-row">
