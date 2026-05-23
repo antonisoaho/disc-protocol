@@ -46,7 +46,6 @@ export const commonEn = {
       signIn: 'Sign in',
       createAccount: 'Create account',
     },
-    hint: 'Email and password (OAuth can be added later).',
     fields: {
       email: 'Email',
       password: 'Password',

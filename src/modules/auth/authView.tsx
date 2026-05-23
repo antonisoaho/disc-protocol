@@ -71,7 +71,6 @@ export function AuthPanel() {
       <h2 id="auth-heading" className="auth-panel__title">
         {mode === 'signin' ? t('auth.title.signIn') : t('auth.title.createAccount')}
       </h2>
-      <p className="auth-panel__hint">{t('auth.hint')}</p>
 
       <form className="auth-panel__form" onSubmit={onSubmit} noValidate>
         <label className="auth-panel__field">
