@@ -19,11 +19,22 @@ export type HoleAutosavePayload = {
   validationError: string | null
   /** When only par changes on a saved-layout round (admin correction). */
   savedParSync: { par: number } | null
+  /** When length changes on a saved-layout round (admin correction; writes the template doc). */
+  savedLengthSync: { lengthMeters: number | null } | null
 }
 
 function parseIntegerInput(value: string): number | null {
   if (!/^\d+$/.test(value.trim())) return null
   return Number(value)
+}
+
+function parseOptionalLengthInput(value: string): { ok: true; lengthMeters: number | null } | { ok: false } {
+  const trimmed = value.trim()
+  if (trimmed.length === 0) return { ok: true, lengthMeters: null }
+  if (!/^\d+$/.test(trimmed)) return { ok: false }
+  const n = Number(trimmed)
+  if (!Number.isFinite(n) || n <= 0) return { ok: false }
+  return { ok: true, lengthMeters: n }
 }
 
 export function clampHoleNumber(holeNumber: number, holeCount: number): number {
@@ -46,8 +57,8 @@ export function mergeAutosavePayload(params: {
   participantIds: string[]
   draft: HoleDraftInputs
   persisted: PersistedHoleState
-  /** When true, saved-layout rounds may sync a new par across scored cells (admin UI). */
-  allowSavedParAdjust?: boolean
+  /** When true, saved-layout rounds may sync par + length adjustments through the admin path. */
+  allowSavedMetadataAdjust?: boolean
 }): HoleAutosavePayload {
   const normalizedParInput = params.draft.parInput.trim()
   const normalizedLengthInput = params.draft.lengthInput.trim()
@@ -87,6 +98,7 @@ export function mergeAutosavePayload(params: {
         hasMeaningfulChange: false,
         validationError: `Score for ${participantUid} must be an integer.`,
         savedParSync: null,
+        savedLengthSync: null,
       }
     }
 
@@ -100,6 +112,7 @@ export function mergeAutosavePayload(params: {
         hasMeaningfulChange: false,
         validationError: `Set par before saving score for ${participantUid}.`,
         savedParSync: null,
+        savedLengthSync: null,
       }
     }
 
@@ -119,7 +132,7 @@ export function mergeAutosavePayload(params: {
   let savedParSync: { par: number } | null = null
   if (
     params.courseSource === 'saved' &&
-    params.allowSavedParAdjust &&
+    params.allowSavedMetadataAdjust &&
     explicitParValue !== null &&
     explicitParValue !== params.persisted.par &&
     participantScoreUpdates.length === 0
@@ -132,13 +145,27 @@ export function mergeAutosavePayload(params: {
     }
   }
 
+  let savedLengthSync: { lengthMeters: number | null } | null = null
+  if (params.courseSource === 'saved' && params.allowSavedMetadataAdjust) {
+    const parsedLength = parseOptionalLengthInput(normalizedLengthInput)
+    const persistedLengthValue =
+      typeof params.persisted.lengthMeters === 'number' ? params.persisted.lengthMeters : null
+    if (parsedLength.ok && parsedLength.lengthMeters !== persistedLengthValue) {
+      savedLengthSync = { lengthMeters: parsedLength.lengthMeters }
+    }
+  }
+
   return {
     metadata,
     participantScoreUpdates,
     hasMeaningfulChange: Boolean(
-      metadataChanged || participantScoreUpdates.length > 0 || savedParSync !== null,
+      metadataChanged ||
+        participantScoreUpdates.length > 0 ||
+        savedParSync !== null ||
+        savedLengthSync !== null,
     ),
     validationError: null,
     savedParSync,
+    savedLengthSync,
   }
 }

@@ -55,6 +55,7 @@ describe('mergeAutosavePayload', () => {
     ])
     expect(payload.hasMeaningfulChange).toBe(true)
     expect(payload.savedParSync).toBeNull()
+    expect(payload.savedLengthSync).toBeNull()
   })
 
   it('returns no-op payload when nothing changed', () => {
@@ -83,6 +84,7 @@ describe('mergeAutosavePayload', () => {
       hasMeaningfulChange: false,
       validationError: null,
       savedParSync: null,
+      savedLengthSync: null,
     })
   })
 
@@ -90,7 +92,7 @@ describe('mergeAutosavePayload', () => {
     const payload = mergeAutosavePayload({
       courseSource: 'saved',
       participantIds: ['u-1', 'u-2'],
-      allowSavedParAdjust: true,
+      allowSavedMetadataAdjust: true,
       draft: {
         parInput: '4',
         lengthInput: '',
@@ -112,14 +114,15 @@ describe('mergeAutosavePayload', () => {
     expect(payload.validationError).toBeNull()
     expect(payload.participantScoreUpdates).toEqual([])
     expect(payload.savedParSync).toEqual({ par: 4 })
+    expect(payload.savedLengthSync).toBeNull()
     expect(payload.hasMeaningfulChange).toBe(true)
   })
 
-  it('skips savedParSync on a saved-layout round when allowSavedParAdjust is false', () => {
+  it('skips savedParSync on a saved-layout round when allowSavedMetadataAdjust is false', () => {
     const payload = mergeAutosavePayload({
       courseSource: 'saved',
       participantIds: ['u-1', 'u-2'],
-      allowSavedParAdjust: false,
+      allowSavedMetadataAdjust: false,
       draft: {
         parInput: '4',
         lengthInput: '',
@@ -139,6 +142,84 @@ describe('mergeAutosavePayload', () => {
     })
 
     expect(payload.savedParSync).toBeNull()
+    expect(payload.savedLengthSync).toBeNull()
+    expect(payload.hasMeaningfulChange).toBe(false)
+  })
+
+  it('emits savedLengthSync when admin adjusts length on a saved-layout round', () => {
+    const payload = mergeAutosavePayload({
+      courseSource: 'saved',
+      participantIds: ['u-1'],
+      allowSavedMetadataAdjust: true,
+      draft: {
+        parInput: '3',
+        lengthInput: '120',
+        scoreInputs: {
+          'u-1': '',
+        },
+      },
+      persisted: {
+        par: 3,
+        lengthMeters: 90,
+        participantScores: {
+          'u-1': { strokes: 3, par: 3 },
+        },
+      },
+    })
+
+    expect(payload.validationError).toBeNull()
+    expect(payload.savedParSync).toBeNull()
+    expect(payload.savedLengthSync).toEqual({ lengthMeters: 120 })
+    expect(payload.hasMeaningfulChange).toBe(true)
+  })
+
+  it('emits savedLengthSync with null when admin clears length on a saved-layout round', () => {
+    const payload = mergeAutosavePayload({
+      courseSource: 'saved',
+      participantIds: ['u-1'],
+      allowSavedMetadataAdjust: true,
+      draft: {
+        parInput: '3',
+        lengthInput: '',
+        scoreInputs: {
+          'u-1': '',
+        },
+      },
+      persisted: {
+        par: 3,
+        lengthMeters: 90,
+        participantScores: {
+          'u-1': { strokes: 3, par: 3 },
+        },
+      },
+    })
+
+    expect(payload.savedLengthSync).toEqual({ lengthMeters: null })
+    expect(payload.hasMeaningfulChange).toBe(true)
+  })
+
+  it('skips savedLengthSync when allowSavedMetadataAdjust is false', () => {
+    const payload = mergeAutosavePayload({
+      courseSource: 'saved',
+      participantIds: ['u-1'],
+      allowSavedMetadataAdjust: false,
+      draft: {
+        parInput: '3',
+        lengthInput: '120',
+        scoreInputs: {
+          'u-1': '',
+        },
+      },
+      persisted: {
+        par: 3,
+        lengthMeters: 90,
+        participantScores: {
+          'u-1': { strokes: 3, par: 3 },
+        },
+      },
+    })
+
+    expect(payload.savedLengthSync).toBeNull()
     expect(payload.hasMeaningfulChange).toBe(false)
   })
 })

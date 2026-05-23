@@ -20,6 +20,7 @@ import {
   removeParticipantFromRound,
   replaceRoundParticipant,
   subscribeMyRounds,
+  syncSavedRoundHoleLengthForHole,
   syncSavedRoundHoleParForHole,
   updateFreshRoundHoleMetadata,
 } from '@core/domain/rounds'
@@ -505,7 +506,7 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
         participantIds: selected.data.participantIds,
         draft: effectiveHoleDraft,
         persisted: persistedHoleState,
-        allowSavedParAdjust: canAdjustSavedCourseMetadata,
+        allowSavedMetadataAdjust: canAdjustSavedCourseMetadata,
       })
 
       if (payload.validationError) {
@@ -536,6 +537,14 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
             actorUid: uid,
             holeNumber: activeHoleNumber,
             par: payload.savedParSync.par,
+          })
+        }
+        if (payload.savedLengthSync) {
+          await syncSavedRoundHoleLengthForHole({
+            roundId: roundId,
+            actorUid: uid,
+            holeNumber: activeHoleNumber,
+            lengthMeters: payload.savedLengthSync.lengthMeters,
           })
         }
         await Promise.all(
@@ -975,7 +984,9 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
                     }))
                   }
                   disablePar={savedCourseMetadataLocked}
-                  disableLength={selected.data.courseSource !== 'fresh'}
+                  disableLength={
+                    selected.data.courseSource === 'fresh' ? false : savedCourseMetadataLocked
+                  }
                   saveStateLabel={saveStateLabel}
                   onSubmit={onSubmitHoleForm}
                 >

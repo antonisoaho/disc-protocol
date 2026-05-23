@@ -46,6 +46,8 @@ import type {
   RoundDoc,
   RoundVisibility,
 } from '@core/domain/round'
+import type { CourseHoleTemplate, CourseTemplateDoc } from '@core/domain/course'
+import { normalizeLengthMeters } from '@core/domain/templateDraft'
 
 const ROUNDS = 'rounds'
 
@@ -502,6 +504,61 @@ export async function syncSavedRoundHoleParForHole(params: {
       participantHoleScores: nextParticipantHoleScores,
       updatedAt: serverTimestamp(),
     })
+  })
+}
+
+/**
+ * Updates `lengthMeters` for one hole on the canonical layout template that a
+ * saved-layout round points at. Admin only. Passing `null` clears the length.
+ */
+export async function syncSavedRoundHoleLengthForHole(params: {
+  roundId: string
+  actorUid: string
+  holeNumber: number
+  lengthMeters: number | null
+}): Promise<void> {
+  const ref = doc(db, ROUNDS, params.roundId)
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref)
+    if (!snap.exists()) {
+      throw new Error('Round not found')
+    }
+    const data = snap.data() as RoundDoc
+    if ((data.courseSource ?? 'saved') !== 'saved') {
+      throw new Error('Length sync applies only to saved-layout rounds.')
+    }
+    if (!data.courseId || !data.templateId) {
+      throw new Error('Saved-layout round is missing course or template reference.')
+    }
+    const profileSnap = await tx.get(doc(db, COLLECTIONS.users, params.actorUid))
+    if (!isUserProfileAdmin(profileSnap.data() ?? null)) {
+      throw new Error('Only an admin can adjust layout length on a saved course round.')
+    }
+    const templateRef = doc(
+      db,
+      COLLECTIONS.courses,
+      data.courseId,
+      COLLECTIONS.templates,
+      data.templateId,
+    )
+    const templateSnap = await tx.get(templateRef)
+    if (!templateSnap.exists()) {
+      throw new Error('Layout template not found for this round.')
+    }
+    const template = templateSnap.data() as CourseTemplateDoc
+    const holes: CourseHoleTemplate[] = Array.isArray(template.holes) ? [...template.holes] : []
+    const idx = holes.findIndex((hole) => hole?.number === params.holeNumber)
+    if (idx === -1) {
+      throw new Error(`Layout template is missing hole ${params.holeNumber}.`)
+    }
+    const nextLength = normalizeLengthMeters(params.lengthMeters)
+    const currentLength = normalizeLengthMeters(holes[idx]?.lengthMeters ?? null)
+    if (nextLength === currentLength) {
+      return
+    }
+    holes[idx] = { ...holes[idx], lengthMeters: nextLength }
+    tx.update(templateRef, { holes })
   })
 }
 
