@@ -284,6 +284,7 @@ function CourseDetail({ courseId }: DetailProps) {
                   courseId={course.id}
                   template={resolvedTemplate}
                   canEdit
+                  holeStats={overviewStats.holeStats}
                 />
               ) : (
                 <CourseTemplateReadOnly
