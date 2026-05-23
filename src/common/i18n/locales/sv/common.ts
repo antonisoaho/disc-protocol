@@ -47,7 +47,6 @@ export const commonSv = {
       signIn: 'Logga in',
       createAccount: 'Skapa konto',
     },
-    hint: 'E-post och lösenord (OAuth kan läggas till senare).',
     fields: {
       email: 'E-post',
       password: 'Lösenord',

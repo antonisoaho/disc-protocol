@@ -25,14 +25,6 @@
   letter-spacing: -0.05em;
 }
 
-.auth-panel__hint {
-  margin: 0 0 $space-5;
-  text-align: left;
-  font-size: 0.9375rem;
-  color: var(--text-muted);
-  line-height: 1.6;
-}
-
 .auth-panel__form {
   display: flex;
   flex-direction: column;
@@ -106,10 +98,6 @@
   .auth-panel__title,
   .auth-panel__label {
     color: var(--text);
-  }
-
-  .auth-panel__hint {
-    color: var(--text-muted);
   }
 
 }
