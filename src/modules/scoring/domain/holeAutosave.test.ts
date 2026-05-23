@@ -86,7 +86,7 @@ describe('mergeAutosavePayload', () => {
     })
   })
 
-  it('emits savedParSync when owner/admin adjusts par only on a saved-layout round', () => {
+  it('emits savedParSync when admin adjusts par only on a saved-layout round', () => {
     const payload = mergeAutosavePayload({
       courseSource: 'saved',
       participantIds: ['u-1', 'u-2'],
@@ -113,5 +113,32 @@ describe('mergeAutosavePayload', () => {
     expect(payload.participantScoreUpdates).toEqual([])
     expect(payload.savedParSync).toEqual({ par: 4 })
     expect(payload.hasMeaningfulChange).toBe(true)
+  })
+
+  it('skips savedParSync on a saved-layout round when allowSavedParAdjust is false', () => {
+    const payload = mergeAutosavePayload({
+      courseSource: 'saved',
+      participantIds: ['u-1', 'u-2'],
+      allowSavedParAdjust: false,
+      draft: {
+        parInput: '4',
+        lengthInput: '',
+        scoreInputs: {
+          'u-1': '',
+          'u-2': '',
+        },
+      },
+      persisted: {
+        par: 3,
+        lengthMeters: null,
+        participantScores: {
+          'u-1': { strokes: 3, par: 3 },
+          'u-2': { strokes: 4, par: 3 },
+        },
+      },
+    })
+
+    expect(payload.savedParSync).toBeNull()
+    expect(payload.hasMeaningfulChange).toBe(false)
   })
 })

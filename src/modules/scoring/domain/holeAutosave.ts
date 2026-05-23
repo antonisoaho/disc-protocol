@@ -17,7 +17,7 @@ export type HoleAutosavePayload = {
   participantScoreUpdates: Array<{ participantUid: string; strokes: number; par: number }>
   hasMeaningfulChange: boolean
   validationError: string | null
-  /** When only par changes on a saved-layout round (owner/admin correction). */
+  /** When only par changes on a saved-layout round (admin correction). */
   savedParSync: { par: number } | null
 }
 
@@ -46,7 +46,7 @@ export function mergeAutosavePayload(params: {
   participantIds: string[]
   draft: HoleDraftInputs
   persisted: PersistedHoleState
-  /** When true, saved-layout rounds may sync a new par across scored cells (owner/admin UI). */
+  /** When true, saved-layout rounds may sync a new par across scored cells (admin UI). */
   allowSavedParAdjust?: boolean
 }): HoleAutosavePayload {
   const normalizedParInput = params.draft.parInput.trim()
