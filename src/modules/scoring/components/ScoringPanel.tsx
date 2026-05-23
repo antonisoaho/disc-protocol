@@ -210,8 +210,8 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
 
   const canAdjustSavedCourseMetadata = useMemo(() => {
     if (!selected || selected.data.courseSource !== 'saved') return false
-    return selected.data.ownerId === uid || isAdmin
-  }, [isAdmin, selected, uid])
+    return isAdmin
+  }, [isAdmin, selected])
 
   const savedCourseMetadataLocked = useMemo(() => {
     if (!selected || selected.data.courseSource !== 'saved') return false

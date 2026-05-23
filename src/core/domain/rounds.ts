@@ -451,7 +451,7 @@ export async function replaceRoundParticipant(params: {
 
 /**
  * Updates `par` for one hole across all participants who already have a score cell
- * (saved-layout rounds). Round owner or admin only.
+ * (saved-layout rounds). Admin only.
  */
 export async function syncSavedRoundHoleParForHole(params: {
   roundId: string
@@ -472,8 +472,8 @@ export async function syncSavedRoundHoleParForHole(params: {
     }
     const profileSnap = await tx.get(doc(db, COLLECTIONS.users, params.actorUid))
     const actorIsAdmin = isUserProfileAdmin(profileSnap.data() ?? null)
-    if (data.ownerId !== params.actorUid && !actorIsAdmin) {
-      throw new Error('Only round owner or admin can adjust layout par on a saved course round.')
+    if (!actorIsAdmin) {
+      throw new Error('Only an admin can adjust layout par on a saved course round.')
     }
     const normalized = normalizeHoleScoreUpdate(
       { holeNumber: params.holeNumber, strokes: 3, par: params.par },
