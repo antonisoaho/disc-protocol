@@ -1,4 +1,5 @@
 import type { Timestamp } from 'firebase/firestore'
+import type { RoundTeam } from '@core/domain/roundTeams'
 
 /** Who can see a round in feeds; follower-only reads land in social epic (#5). */
 export type RoundVisibility = 'public' | 'private' | 'unlisted'
@@ -42,11 +43,15 @@ export type RoundAnonymousParticipant = {
   displayName: string
 }
 
+export type { RoundTeam } from '@core/domain/roundTeams'
+
 export type RoundDoc = {
   ownerId: string
   participantIds: string[]
   /** Metadata for anonymous participants whose ids are also in `participantIds`. */
   anonymousParticipants?: RoundAnonymousParticipant[]
+  /** Optional scramble teams; each participant may belong to at most one team. */
+  teams?: RoundTeam[]
   courseId: string
   templateId: string
   courseSource?: RoundCourseSource

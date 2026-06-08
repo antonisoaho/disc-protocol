@@ -191,3 +191,47 @@
 .start-round-wizard__guest-add {
   align-self: stretch;
 }
+
+.start-round-wizard__teams {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+}
+
+.start-round-wizard__team-list {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.start-round-wizard__team-card {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  padding: $space-3;
+  border: 1px solid var(--border);
+  border-radius: $radius-sm;
+  background: var(--body-bg);
+}
+
+.start-round-wizard__team-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-2;
+}
+
+.start-round-wizard__teams-footer {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+}
+
+.start-round-wizard__review-team-list {
+  margin: 0;
+  padding-left: $space-4;
+}

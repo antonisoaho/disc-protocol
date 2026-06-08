@@ -85,6 +85,11 @@ describe('StartRoundPlayersStep', () => {
           onAnonymousNameInvalid={() => {}}
           onAddAnonymousParticipant={() => {}}
           participantDisplayName={(entry) => entry.displayName}
+          teams={[]}
+          onAddTeam={() => {}}
+          onRemoveTeam={() => {}}
+          onTeamNameChange={() => {}}
+          onToggleTeamMember={() => {}}
           busy={false}
         />
       </I18nextProvider>,
@@ -111,12 +116,51 @@ describe('StartRoundReviewStep', () => {
           quickCourseName=""
           holeCount={18}
           playerNames={['Alex', 'Sam']}
+          teamSummaries={[{ name: 'Eagles', memberNames: 'Alex, Sam' }]}
         />
       </I18nextProvider>,
     )
 
     expect(html).toContain('Maple Hill')
     expect(html).toContain('Alex, Sam')
+    expect(html).toContain('Eagles: Alex, Sam')
     expect(html).toContain('New rounds are listed on player dashboards')
+  })
+})
+
+describe('StartRoundPlayersStep teams', () => {
+  it('shows teams section when two or more players are in the roster', () => {
+    const html = renderToString(
+      <I18nextProvider i18n={i18n}>
+        <StartRoundPlayersStep
+          rosterEntries={[
+            { id: 'owner', name: 'Alex', kind: 'you' },
+            { id: 'u2', name: 'Sam', kind: 'registered' },
+          ]}
+          onRemoveRosterEntry={() => {}}
+          availableParticipants={[]}
+          selectedParticipantIds={['owner', 'u2']}
+          onToggleParticipant={() => {}}
+          participantQuery=""
+          onParticipantQueryChange={() => {}}
+          anonymousName=""
+          onAnonymousNameChange={() => {}}
+          anonymousNameError={null}
+          anonymousNameInputRef={{ current: null }}
+          onAnonymousNameInvalid={() => {}}
+          onAddAnonymousParticipant={() => {}}
+          participantDisplayName={(entry) => entry.displayName}
+          teams={[]}
+          onAddTeam={() => {}}
+          onRemoveTeam={() => {}}
+          onTeamNameChange={() => {}}
+          onToggleTeamMember={() => {}}
+          busy={false}
+        />
+      </I18nextProvider>,
+    )
+
+    expect(html).toContain('Teams')
+    expect(html).toContain('Add team')
   })
 })
