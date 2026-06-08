@@ -172,3 +172,22 @@
   gap: $space-2;
   margin-left: auto;
 }
+
+.start-round-wizard__guest-disclosure[open] .scoring-panel__disclosure-summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.start-round-wizard__guest-form {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  padding: $space-3;
+}
+
+.start-round-wizard__guest-input {
+  width: 100%;
+}
+
+.start-round-wizard__guest-add {
+  align-self: stretch;
+}

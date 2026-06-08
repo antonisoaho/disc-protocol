@@ -499,6 +499,8 @@ export const commonEn = {
           guestBadge: 'Guest',
         },
         guestNameLabel: 'Guest name',
+        guestNamePlaceholder: 'Name',
+        addGuest: 'Add guest',
         review: {
           course: 'Course',
           players: 'Players',
