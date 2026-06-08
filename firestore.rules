@@ -86,6 +86,11 @@ service cloud.firestore {
         || data.anonymousParticipants is list;
     }
 
+    function validTeamsShape(data) {
+      return !data.keys().hasAny(['teams'])
+        || data.teams is list;
+    }
+
     function visibilityChangeAllowed() {
       return request.resource.data.visibility == resource.data.visibility
         || isRoundOwner(resource.data);
@@ -182,6 +187,7 @@ service cloud.firestore {
         && validRoundPromotionShape(request.resource.data)
         && freshDraftPresentWhenNeeded(request.resource.data)
         && validAnonymousParticipantsShape(request.resource.data)
+        && validTeamsShape(request.resource.data)
         && request.resource.data.keys().hasAll([
           'ownerId',
           'participantIds',
@@ -209,7 +215,8 @@ service cloud.firestore {
         && validCourseSource(request.resource.data.courseSource)
         && validRoundPromotionShape(request.resource.data)
         && freshDraftPresentWhenNeeded(request.resource.data)
-        && validAnonymousParticipantsShape(request.resource.data);
+        && validAnonymousParticipantsShape(request.resource.data)
+        && validTeamsShape(request.resource.data);
 
       allow delete: if isRoundOwner(resource.data) || isAdmin();
     }

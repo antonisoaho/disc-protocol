@@ -38,6 +38,7 @@ import {
   type FreshHoleInput,
   type FreshRoundDraftIssue,
 } from '@core/domain/freshRoundCourse'
+import { normalizeRoundTeams, type RoundTeam } from '@core/domain/roundTeams'
 import type {
   HoleScoreEntry,
   RoundAnonymousParticipant,
@@ -59,6 +60,8 @@ type BaseCreateRoundInput = {
   participantIds: string[]
   /** Optional display names for anonymous entries included in `participantIds`. */
   anonymousParticipants?: RoundAnonymousParticipant[]
+  /** Optional scramble teams created at round start. */
+  teams?: RoundTeam[]
 }
 
 type CreateSavedRoundInput = BaseCreateRoundInput & {
@@ -115,6 +118,7 @@ export async function createRound(input: CreateRoundInput): Promise<string> {
     new Set(input.participantIds.map((participantId) => participantId.trim()).filter((participantId) => participantId.length > 0)),
   )
   const anonymousParticipants = mergeAnonymousParticipants(participantIds, input.anonymousParticipants)
+  const teams = normalizeRoundTeams(participantIds, input.teams)
   const roundRef = doc(collection(db, ROUNDS))
   const isFreshRound = input.courseSource === 'fresh'
   const refs = isFreshRound
@@ -131,6 +135,7 @@ export async function createRound(input: CreateRoundInput): Promise<string> {
     ownerId: input.ownerId,
     participantIds,
     anonymousParticipants,
+    ...(teams.length > 0 ? { teams } : {}),
     courseId: refs.courseId,
     templateId: refs.templateId,
     courseSource: isFreshRound ? 'fresh' : 'saved',

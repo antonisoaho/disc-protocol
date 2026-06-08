@@ -1206,6 +1206,23 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
                   )
                 })}
               </ul>
+              {selected.data.teams && selected.data.teams.length > 0 ? (
+                <div className="scoring-panel__field">
+                  <span className="scoring-panel__label">{t('scoring.participants.teams')}</span>
+                  <ul className="scoring-panel__list">
+                    {selected.data.teams.map((team) => (
+                      <li key={team.id} className="scoring-panel__list-item">
+                        {t('scoring.participants.teamLine', {
+                          teamName: team.name,
+                          members: team.participantIds
+                            .map((participantId) => selectedParticipantNames[participantId] ?? participantId)
+                            .join(', '),
+                        })}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               <p className="scoring-panel__muted">
                 {t('scoring.participants.grandTotal', {
                   totalStrokes: selectedGrandTotals.totalStrokes,
