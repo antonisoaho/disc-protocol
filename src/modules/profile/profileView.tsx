@@ -8,6 +8,7 @@ import {
   updateUserDisplayName,
   validateDisplayName,
 } from '@core/users/userProfile'
+import { ProfileTeamsSection } from '@modules/profile/components/ProfileTeamsSection'
 
 const NON_WHITESPACE_PATTERN = '.*\\S.*'
 
@@ -148,6 +149,7 @@ export function ProfilePage() {
           </p>
         ) : null}
       </section>
+      <ProfileTeamsSection user={sessionUser} profileDisplayName={profileDisplayName} />
     </div>
   )
 }
