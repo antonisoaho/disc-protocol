@@ -479,6 +479,37 @@ export const commonEn = {
       title: 'New round',
       visibilityPublicHint: 'New rounds are listed on player dashboards for discoverability.',
       continueToScorecard: 'Continue to scorecard',
+      wizard: {
+        steps: {
+          course: 'Course',
+          players: 'Players',
+          review: 'Review',
+        },
+        courseMode: {
+          saved: 'Saved course',
+          quick: 'Quick round',
+        },
+        courseSearchPlaceholder: 'Search courses by name',
+        courseListAria: 'Choose a saved course',
+        favoriteBadge: 'Favourite',
+        quickHint: 'Start quickly with a name and hole count, then fill par and length as you play.',
+        roster: {
+          title: 'Who is playing',
+          you: 'You',
+          guestBadge: 'Guest',
+        },
+        guestNameLabel: 'Guest name',
+        review: {
+          course: 'Course',
+          players: 'Players',
+          savedCourse: '{{courseName}}',
+          quickCourse: '{{courseName}} · {{holeCount}} holes',
+        },
+        nav: {
+          next: 'Next',
+          back: 'Back',
+        },
+      },
     },
     list: {
       title: 'Your rounds',

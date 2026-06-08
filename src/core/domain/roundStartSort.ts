@@ -17,3 +17,14 @@ export function sortCoursesForRoundStart<TCourse extends CourseRow>(
     return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' })
   })
 }
+
+export function filterCoursesByNameQuery<TCourse extends CourseRow>(
+  courses: TCourse[],
+  query: string,
+): TCourse[] {
+  const normalized = query.trim().toLowerCase()
+  if (normalized.length === 0) {
+    return courses
+  }
+  return courses.filter((course) => course.name.toLowerCase().includes(normalized))
+}

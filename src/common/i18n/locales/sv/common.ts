@@ -480,6 +480,37 @@ export const commonSv = {
       title: 'Ny runda',
       visibilityPublicHint: 'Nya rundor listas på spelarnas översikter för synlighet.',
       continueToScorecard: 'Fortsätt till scorekort',
+      wizard: {
+        steps: {
+          course: 'Bana',
+          players: 'Spelare',
+          review: 'Granska',
+        },
+        courseMode: {
+          saved: 'Sparad bana',
+          quick: 'Snabbrunda',
+        },
+        courseSearchPlaceholder: 'Sök banor efter namn',
+        courseListAria: 'Välj en sparad bana',
+        favoriteBadge: 'Favorit',
+        quickHint: 'Starta snabbt med namn och antal hål, fyll i par och längd under spelet.',
+        roster: {
+          title: 'Vilka spelar',
+          you: 'Du',
+          guestBadge: 'Gäst',
+        },
+        guestNameLabel: 'Gästnamn',
+        review: {
+          course: 'Bana',
+          players: 'Spelare',
+          savedCourse: '{{courseName}}',
+          quickCourse: '{{courseName}} · {{holeCount}} hål',
+        },
+        nav: {
+          next: 'Nästa',
+          back: 'Tillbaka',
+        },
+      },
     },
     list: {
       title: 'Dina rundor',
