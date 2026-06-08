@@ -61,7 +61,7 @@ describe('StartRoundCourseStep', () => {
     )
 
     expect(html).toContain('Saved course')
-    expect(html).toContain('Quick round')
+    expect(html).toContain('New course')
     expect(html).toContain('id="start-fresh-course-name"')
   })
 })
