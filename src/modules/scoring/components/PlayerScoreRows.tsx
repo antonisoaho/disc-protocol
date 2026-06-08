@@ -1,6 +1,12 @@
+import type { ParticipantTotals } from '@core/domain/scorecardTable'
+import { ScoreRowStandingBadge } from '@modules/scoring/components/ScoreRowStandingBadge'
+import { computeRelativeStandingById } from '@modules/scoring/domain/scoreRowStanding'
 import { scoreTierToNotationClassName, strokesParDeltaToNotation } from '@modules/scoring/domain/scoreSemantic'
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { scoreTierLabel } from '@modules/scoring/domain/scoreTierI18n'
+
+const EMPTY_TOTALS_BY_PARTICIPANT: Record<string, ParticipantTotals> = {}
 
 type Props = {
   participantIds: string[]
@@ -8,6 +14,8 @@ type Props = {
   scoreInputs: Record<string, string>
   onScoreChange: (participantUid: string, value: string) => void
   parValue: number | null
+  totalsByParticipant?: Record<string, ParticipantTotals>
+  disabled?: boolean
 }
 
 function parseIntegerInput(value: string): number | null {
@@ -15,8 +23,27 @@ function parseIntegerInput(value: string): number | null {
   return Number(value)
 }
 
-export function PlayerScoreRows({ participantIds, participantNames, scoreInputs, onScoreChange, parValue }: Props) {
+export function PlayerScoreRows({
+  participantIds,
+  participantNames,
+  scoreInputs,
+  onScoreChange,
+  parValue,
+  totalsByParticipant = EMPTY_TOTALS_BY_PARTICIPANT,
+  disabled = false,
+}: Props) {
   const { t } = useTranslation('common')
+
+  const standingByParticipantId = useMemo(
+    () =>
+      computeRelativeStandingById(
+        participantIds.map((participantId) => ({
+          id: participantId,
+          totals: totalsByParticipant[participantId],
+        })),
+      ),
+    [participantIds, totalsByParticipant],
+  )
 
   return (
     <div className="scoring-panel__player-rows" role="list" aria-label={t('scoring.playerRows.listAria')}>
@@ -47,7 +74,10 @@ export function PlayerScoreRows({ participantIds, participantNames, scoreInputs,
 
         return (
           <div key={participantUid} className="scoring-panel__player-row scoring-panel__player-row--compact" role="listitem">
-            <span className="scoring-panel__player-row-name scoring-panel__player-row-name--compact">{displayName}</span>
+            <span className="scoring-panel__player-row-name scoring-panel__player-row-name--compact">
+              <span className="scoring-panel__player-row-name-text">{displayName}</span>
+              <ScoreRowStandingBadge label={standingByParticipantId[participantUid] ?? ''} />
+            </span>
             <div className="scoring-panel__player-score-control">
               <div className={`scoring-panel__player-score-input-shell ${shellTierClass}`.trim()}>
                 <input
@@ -60,6 +90,7 @@ export function PlayerScoreRows({ participantIds, participantNames, scoreInputs,
                   value={inputValue}
                   title={inputTitle}
                   onChange={(event) => onScoreChange(participantUid, event.target.value.replace(/\D/g, '').slice(0, 2))}
+                  disabled={disabled}
                   aria-label={t('scoring.playerRows.strokesForPlayerAria', { displayName })}
                 />
               </div>

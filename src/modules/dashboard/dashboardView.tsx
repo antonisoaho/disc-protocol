@@ -456,7 +456,11 @@ export function DashboardHome({ viewer, profileUid, readOnly }: Props) {
             <li key={id} className="dashboard-home__round-row">
               <Link
                 to={`/rounds/${id}/scorecard`}
-                state={readOnly ? { backTo: `/players/${profileUid}` } : undefined}
+                state={
+                  readOnly
+                    ? { backTo: `/players/${profileUid}`, backToPlayerName: profileLabel }
+                    : undefined
+                }
                 className="dashboard-home__round-link"
               >
                 <span className="dashboard-home__round-name">
