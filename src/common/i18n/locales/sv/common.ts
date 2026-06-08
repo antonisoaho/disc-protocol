@@ -500,6 +500,8 @@ export const commonSv = {
           guestBadge: 'Gäst',
         },
         guestNameLabel: 'Gästnamn',
+        guestNamePlaceholder: 'Namn',
+        addGuest: 'Lägg till gäst',
         review: {
           course: 'Bana',
           players: 'Spelare',

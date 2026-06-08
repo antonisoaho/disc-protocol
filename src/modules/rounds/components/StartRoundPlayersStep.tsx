@@ -115,47 +115,51 @@ export function StartRoundPlayersStep({
         </div>
       </div>
 
-      <details className="scoring-panel__disclosure">
+      <details className="scoring-panel__disclosure start-round-wizard__guest-disclosure">
         <summary className="scoring-panel__disclosure-summary">{t('scoring.buttons.addAnonymous')}</summary>
-        <div className="scoring-panel__row scoring-panel__row--compact">
-          <div className="scoring-panel__field scoring-panel__field--grow scoring-panel__field--compact field">
-            <label className="scoring-panel__label field__label" htmlFor="start-new-round-anonymous-name">
-              {t('rounds.new.wizard.guestNameLabel')}
-            </label>
-            <input
-              id="start-new-round-anonymous-name"
-              ref={anonymousNameInputRef}
-              className={`scoring-panel__input field__control${anonymousNameError ? ' field__control--invalid' : ''}`}
-              value={anonymousName}
-              onChange={(event) => {
-                event.currentTarget.setCustomValidity('')
-                onAnonymousNameChange(event.target.value)
-              }}
-              onInvalid={(event) => {
+        <div className="start-round-wizard__guest-form">
+          <input
+            id="start-new-round-anonymous-name"
+            ref={anonymousNameInputRef}
+            className={`scoring-panel__input start-round-wizard__guest-input${
+              anonymousNameError ? ' field__control--invalid' : ''
+            }`}
+            value={anonymousName}
+            onChange={(event) => {
+              event.currentTarget.setCustomValidity('')
+              onAnonymousNameChange(event.target.value)
+            }}
+            onInvalid={(event) => {
+              event.preventDefault()
+              onAnonymousNameInvalid(event.currentTarget)
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
                 event.preventDefault()
-                onAnonymousNameInvalid(event.currentTarget)
-              }}
-              pattern={NON_WHITESPACE_PATTERN}
-              maxLength={ANONYMOUS_NAME_MAX_LENGTH}
-              placeholder={t('scoring.placeholders.playerName')}
-              autoComplete="off"
-              aria-invalid={anonymousNameError ? 'true' : 'false'}
-              aria-describedby={anonymousNameError ? 'start-new-round-anonymous-name-error' : undefined}
-              disabled={busy}
-            />
-            {anonymousNameError ? (
-              <p id="start-new-round-anonymous-name-error" className="field__error" role="alert">
-                {anonymousNameError}
-              </p>
-            ) : null}
-          </div>
+                onAddAnonymousParticipant()
+              }
+            }}
+            pattern={NON_WHITESPACE_PATTERN}
+            maxLength={ANONYMOUS_NAME_MAX_LENGTH}
+            placeholder={t('rounds.new.wizard.guestNamePlaceholder')}
+            aria-label={t('rounds.new.wizard.guestNameLabel')}
+            autoComplete="off"
+            aria-invalid={anonymousNameError ? 'true' : 'false'}
+            aria-describedby={anonymousNameError ? 'start-new-round-anonymous-name-error' : undefined}
+            disabled={busy}
+          />
+          {anonymousNameError ? (
+            <p id="start-new-round-anonymous-name-error" className="field__error" role="alert">
+              {anonymousNameError}
+            </p>
+          ) : null}
           <button
             type="button"
-            className="scoring-panel__button"
+            className="scoring-panel__button start-round-wizard__guest-add"
             onClick={onAddAnonymousParticipant}
             disabled={busy}
           >
-            {t('scoring.buttons.addPlayer')}
+            {t('rounds.new.wizard.addGuest')}
           </button>
         </div>
       </details>
