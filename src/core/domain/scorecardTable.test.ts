@@ -4,6 +4,7 @@ import {
   collectScorecardEditedHoleNumbers,
   computeGrandTotals,
   computeParticipantTotals,
+  countFullyScoredHoles,
   getOutcomeForScore,
   pickLeadingParticipantIds,
 } from '@core/domain/scorecardTable'
@@ -86,6 +87,39 @@ describe('collectScorecardEditedHoleNumbers', () => {
         'score:u-2:bad': 'x',
       }),
     ).toEqual([1, 2, 11])
+  })
+})
+
+describe('countFullyScoredHoles', () => {
+  it('counts only holes where every required participant has a score', () => {
+    expect(
+      countFullyScoredHoles({
+        holeCount: 3,
+        requiredScoreParticipantIds: ['u-1', 'u-2'],
+        scoresByParticipant: {
+          'u-1': {
+            '1': { strokes: 3, par: 3 },
+            '2': { strokes: 4, par: 3 },
+          },
+          'u-2': {
+            '1': { strokes: 4, par: 3 },
+          },
+        },
+      }),
+    ).toBe(1)
+  })
+
+  it('returns zero when no hole is complete for all participants', () => {
+    expect(
+      countFullyScoredHoles({
+        holeCount: 2,
+        requiredScoreParticipantIds: ['u-1', 'u-2'],
+        scoresByParticipant: {
+          'u-1': { '1': { strokes: 3, par: 3 } },
+          'u-2': {},
+        },
+      }),
+    ).toBe(0)
   })
 })
 

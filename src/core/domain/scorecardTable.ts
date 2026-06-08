@@ -138,6 +138,31 @@ export function collectScorecardEditedHoleNumbers(edits: Record<string, string>)
   return Array.from(holeNumbers).sort((a, b) => a - b)
 }
 
+/** Holes where every required scoring unit has a recorded stroke. */
+export function countFullyScoredHoles(params: {
+  holeCount: number
+  scoresByParticipant: ParticipantHoleScores
+  requiredScoreParticipantIds: string[]
+}): number {
+  const { holeCount, scoresByParticipant, requiredScoreParticipantIds } = params
+  if (holeCount < 1 || requiredScoreParticipantIds.length === 0) {
+    return 0
+  }
+
+  let completeHoles = 0
+  for (let holeNumber = 1; holeNumber <= holeCount; holeNumber += 1) {
+    const holeKey = String(holeNumber)
+    const isComplete = requiredScoreParticipantIds.every((participantId) => {
+      const cell = scoresByParticipant[participantId]?.[holeKey]
+      return cell !== undefined && Number.isFinite(cell.strokes)
+    })
+    if (isComplete) {
+      completeHoles += 1
+    }
+  }
+  return completeHoles
+}
+
 export function computeGrandTotals(participantTotals: Record<string, ParticipantTotals>): ScorecardGrandTotals {
   const values = Object.values(participantTotals)
   let totalStrokes = 0

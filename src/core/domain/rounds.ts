@@ -45,6 +45,7 @@ import type {
   ParticipantHoleScores,
   RoundCourseDraft,
   RoundDoc,
+  RoundScoringMode,
   RoundVisibility,
 } from '@core/domain/round'
 import type { CourseHoleTemplate, CourseTemplateDoc } from '@core/domain/course'
@@ -60,6 +61,8 @@ type BaseCreateRoundInput = {
   participantIds: string[]
   /** Optional display names for anonymous entries included in `participantIds`. */
   anonymousParticipants?: RoundAnonymousParticipant[]
+  /** Stroke play vs scramble; defaults to individual. */
+  scoringMode?: RoundScoringMode
   /** Optional scramble teams created at round start. */
   teams?: RoundTeam[]
 }
@@ -118,7 +121,9 @@ export async function createRound(input: CreateRoundInput): Promise<string> {
     new Set(input.participantIds.map((participantId) => participantId.trim()).filter((participantId) => participantId.length > 0)),
   )
   const anonymousParticipants = mergeAnonymousParticipants(participantIds, input.anonymousParticipants)
-  const teams = normalizeRoundTeams(participantIds, input.teams)
+  const scoringMode = input.scoringMode ?? (input.teams && input.teams.length > 0 ? 'scramble' : 'individual')
+  const teams =
+    scoringMode === 'scramble' ? normalizeRoundTeams(participantIds, input.teams) : []
   const roundRef = doc(collection(db, ROUNDS))
   const isFreshRound = input.courseSource === 'fresh'
   const refs = isFreshRound
@@ -135,6 +140,7 @@ export async function createRound(input: CreateRoundInput): Promise<string> {
     ownerId: input.ownerId,
     participantIds,
     anonymousParticipants,
+    scoringMode,
     ...(teams.length > 0 ? { teams } : {}),
     courseId: refs.courseId,
     templateId: refs.templateId,
@@ -209,14 +215,20 @@ export async function recordHoleScoreTransaction(
   })
 }
 
-export async function recordParticipantHoleScoreTransaction(
+export async function recordParticipantHoleScoresBatchTransaction(
   roundId: string,
   actorUid: string,
-  participantUid: string,
-  holeNumber: number,
-  strokes: number,
-  par: number,
+  updates: ReadonlyArray<{
+    participantUid: string
+    holeNumber: number
+    strokes: number
+    par: number
+  }>,
 ): Promise<void> {
+  if (updates.length === 0) {
+    return
+  }
+
   const ref = doc(db, ROUNDS, roundId)
 
   await runTransaction(db, async (tx) => {
@@ -228,30 +240,51 @@ export async function recordParticipantHoleScoreTransaction(
     if (!data.participantIds.includes(actorUid)) {
       throw new Error('Not a participant of this round')
     }
-    if (!data.participantIds.includes(participantUid)) {
-      throw new Error('Target participant is not in this round')
-    }
-    const normalized = normalizeHoleScoreUpdate(
-      { holeNumber, strokes, par },
-      { holeCount: data.holeCount ?? null },
-    )
-    const scoreEntry = {
-      strokes: normalized.strokes,
-      par: normalized.par,
-      updatedAt: serverTimestamp(),
-      updatedBy: actorUid,
-    }
+
     const nextParticipantHoleScores = cloneParticipantHoleScores(data.participantHoleScores)
-    nextParticipantHoleScores[participantUid] = {
-      ...(nextParticipantHoleScores[participantUid] ?? {}),
-      [normalized.holeKey]: scoreEntry,
+    const updatedAt = serverTimestamp()
+
+    for (const update of updates) {
+      if (!data.participantIds.includes(update.participantUid)) {
+        throw new Error('Target participant is not in this round')
+      }
+      const normalized = normalizeHoleScoreUpdate(
+        {
+          holeNumber: update.holeNumber,
+          strokes: update.strokes,
+          par: update.par,
+        },
+        { holeCount: data.holeCount ?? null },
+      )
+      nextParticipantHoleScores[update.participantUid] = {
+        ...(nextParticipantHoleScores[update.participantUid] ?? {}),
+        [normalized.holeKey]: {
+          strokes: normalized.strokes,
+          par: normalized.par,
+          updatedAt,
+          updatedBy: actorUid,
+        },
+      }
     }
 
     tx.update(ref, {
       participantHoleScores: nextParticipantHoleScores,
-      updatedAt: serverTimestamp(),
+      updatedAt,
     })
   })
+}
+
+export async function recordParticipantHoleScoreTransaction(
+  roundId: string,
+  actorUid: string,
+  participantUid: string,
+  holeNumber: number,
+  strokes: number,
+  par: number,
+): Promise<void> {
+  await recordParticipantHoleScoresBatchTransaction(roundId, actorUid, [
+    { participantUid, holeNumber, strokes, par },
+  ])
 }
 
 export async function updateFreshRoundHoleMetadata(params: {
