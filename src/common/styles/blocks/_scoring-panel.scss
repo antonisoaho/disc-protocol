@@ -68,6 +68,10 @@
     gap: $space-2;
     align-items: flex-start;
   }
+
+  &--end {
+    justify-content: flex-end;
+  }
 }
 
 .scoring-panel__field {
@@ -580,11 +584,57 @@
 }
 
 .scoring-panel__player-row-name--compact {
+  display: flex;
+  align-items: baseline;
+  gap: $space-1;
+  min-width: 0;
   font-weight: 600;
+}
+
+.scoring-panel__player-row-name-text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1 1 auto;
+}
+
+.scoring-panel__player-row-name--team {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+  min-width: 0;
+}
+
+.scoring-panel__player-row-name-heading {
+  display: flex;
+  align-items: baseline;
+  gap: $space-1;
+  min-width: 0;
+}
+
+.scoring-panel__player-row-members {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.scoring-panel__save-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-2;
+}
+
+.scoring-panel__retry-save {
+  flex-shrink: 0;
+}
+
+.scoring-panel__player-row-standing {
+  flex-shrink: 0;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: $space-1;
 }
 
 .scoring-panel__player-score-control {
@@ -774,6 +824,73 @@
   margin: 0;
 }
 
+.round-results {
+  margin: 0 0 $space-4;
+  padding: $space-3;
+  border: 1px solid var(--border);
+  border-radius: $radius-md;
+  background: color-mix(in srgb, var(--body-bg) 55%, var(--surface-bg));
+}
+
+.round-results__winner {
+  margin: 0 0 $space-3;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.round-results__standings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+}
+
+.round-results__standing {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  padding: $space-2 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+.round-results__place {
+  flex-shrink: 0;
+  width: 2rem;
+  text-align: center;
+  font-size: 1.35rem;
+  line-height: 1;
+
+  &--numeric {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.85rem;
+    height: 1.85rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: color-mix(in srgb, var(--text) 6%, var(--surface-bg));
+    border: 1px solid var(--border);
+  }
+}
+
+.round-results__line {
+  flex: 1;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
 // Scrollable scorecard matrix (holes × players), similar to a traditional card view.
 .scorecard-summary-grid__scroll {
   width: 100%;
@@ -786,9 +903,48 @@
 }
 
 .scorecard-summary-grid {
-  width: 100%;
-  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.78rem;
+  table-layout: fixed;
+}
+
+.scorecard-summary-grid__col-name {
+  width: 7.5rem;
+}
+
+.scorecard-summary-grid__col-hole {
+  width: 2.25rem;
+}
+
+.scorecard-summary-grid__col-total {
+  width: 2.75rem;
+}
+
+%scorecard-summary-grid-sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  width: 7.5rem;
+  min-width: 7.5rem;
+  max-width: 7.5rem;
+  box-sizing: border-box;
+  background-clip: padding-box;
+  box-shadow:
+    1px 0 0 0 var(--border),
+    6px 0 10px -4px color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+%scorecard-summary-grid-name-cell {
+  @extend %scorecard-summary-grid-sticky-col;
+
+  padding: $space-2;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .scorecard-summary-grid__corner,
@@ -803,13 +959,9 @@
 }
 
 .scorecard-summary-grid__corner {
-  text-align: left;
-  position: sticky;
-  left: 0;
-  z-index: 1;
+  @extend %scorecard-summary-grid-name-cell;
+
   background: var(--surface-bg);
-  min-width: 6.5rem;
-  max-width: 9rem;
 }
 
 .scorecard-summary-grid__hole-head {
@@ -822,25 +974,33 @@
   color: var(--text);
 }
 
-.scorecard-summary-grid__par-row {
+.scorecard-summary-grid__par-row,
+.scorecard-summary-grid__length-row {
   color: var(--text-muted);
 }
 
-.scorecard-summary-grid__par-label {
-  padding: $space-1 $space-2;
-  text-align: left;
-  position: sticky;
-  left: 0;
-  z-index: 1;
+.scorecard-summary-grid__par-label,
+.scorecard-summary-grid__length-label {
+  @extend %scorecard-summary-grid-name-cell;
+
   background: color-mix(in srgb, var(--body-bg) 55%, var(--surface-bg));
   border-bottom: 1px solid var(--border);
   font-weight: 600;
+  font-size: 0.72rem;
 }
 
-.scorecard-summary-grid__par-cell {
+.scorecard-summary-grid__par-cell,
+.scorecard-summary-grid__length-cell {
   padding: $space-1 $space-1;
   text-align: center;
   border-bottom: 1px solid var(--border);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.scorecard-summary-grid__length-cell {
+  color: color-mix(in srgb, var(--text-muted) 88%, var(--text));
 }
 
 .scorecard-summary-grid__par-cell--total {
@@ -848,25 +1008,35 @@
   color: var(--text);
 }
 
-.scorecard-summary-grid__player-name {
-  padding: $space-2;
-  text-align: left;
+.scorecard-summary-grid__length-cell--total {
   font-weight: 600;
-  position: sticky;
-  left: 0;
-  z-index: 1;
+  color: var(--text);
+}
+
+.scorecard-summary-grid__player-name {
+  @extend %scorecard-summary-grid-name-cell;
+
+  display: flex;
+  align-items: baseline;
+  gap: $space-1;
+  min-width: 0;
+  font-weight: 600;
   background: var(--surface-bg);
   border-bottom: 1px solid var(--border);
-  max-width: 9rem;
+}
+
+.scorecard-summary-grid__player-name-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1 1 auto;
 }
 
 .scorecard-summary-grid__to-par-badge {
+  flex-shrink: 0;
   font-weight: 500;
   color: var(--text-muted);
-  margin-left: $space-1;
 }
 
 .scorecard-summary-grid__stroke-cell {
@@ -1043,7 +1213,8 @@
     background: #ffffff;
   }
 
-  .scorecard-summary-grid__par-label {
+  .scorecard-summary-grid__par-label,
+  .scorecard-summary-grid__length-label {
     background: #f4f6fa;
   }
 

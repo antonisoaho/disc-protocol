@@ -1,12 +1,20 @@
-import type { Timestamp } from 'firebase/firestore'
+import { doc, onSnapshot, type Timestamp } from 'firebase/firestore'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { CourseTemplateDoc } from '@core/domain/course'
 import type { RoundDoc, RoundAnonymousParticipant } from '@core/domain/round'
+import { COLLECTIONS } from '@core/firebase/paths'
+import { db } from '@core/firebase/firestore'
 import { inferRoundHoleCount } from '@core/domain/inferRoundHoleCount'
 import { aggregateScoreProtocol, normalizeScoreProtocol } from '@core/domain/scoreProtocol'
 import { buildAnonymousParticipantNameMap } from '@core/domain/participantRoster'
 import { subscribeUserDirectory, type UserDirectoryEntry } from '@core/users/userDirectory'
+import { RoundResultsSummary } from '@modules/scoring/components/RoundResultsSummary'
 import { ScorecardSummaryGrid } from '@modules/scoring/components/ScorecardSummaryGrid'
+import { buildRoundResultUnits } from '@modules/scoring/domain/buildRoundResultStandings'
+import { buildRoundHoleMetadataByNumber } from '@modules/scoring/domain/buildRoundHoleMetadata'
+import { isScrambleRound, resolveScrambleGridRows } from '@core/domain/scrambleScoring'
+import { normalizeRoundTeams } from '@core/domain/roundTeams'
 
 type Props = {
   round: RoundDoc
@@ -61,6 +69,7 @@ function deriveCourseLabel(round: RoundDoc, fallback: string): string {
 export function ReadOnlyScorecard({ round }: Props) {
   const { t, i18n } = useTranslation('common')
   const [directoryEntries, setDirectoryEntries] = useState<UserDirectoryEntry[]>([])
+  const [layoutHoles, setLayoutHoles] = useState<CourseTemplateDoc['holes'] | null>(null)
 
   useEffect(() => {
     const unsub = subscribeUserDirectory(
@@ -70,8 +79,33 @@ export function ReadOnlyScorecard({ round }: Props) {
     return () => unsub()
   }, [])
 
+  useEffect(() => {
+    if (round.courseSource !== 'saved') {
+      queueMicrotask(() => setLayoutHoles(null))
+      return
+    }
+    const templateRef = doc(db, COLLECTIONS.courses, round.courseId, COLLECTIONS.templates, round.templateId)
+    return onSnapshot(templateRef, (snapshot) => {
+      queueMicrotask(() => {
+        setLayoutHoles(snapshot.exists() ? (snapshot.data() as CourseTemplateDoc).holes : null)
+      })
+    })
+  }, [round.courseId, round.courseSource, round.templateId])
+
   const holeCount = useMemo(() => inferRoundHoleCount(round) ?? 0, [round])
   const scoresByParticipant = useMemo(() => readParticipantHoleScores(round), [round])
+  const holeMetadataByNumber = useMemo(
+    () =>
+      buildRoundHoleMetadataByNumber({
+        holeCount,
+        courseSource: round.courseSource,
+        courseDraftHoles: round.courseDraft?.holes,
+        layoutHoles,
+        scoresByParticipant,
+        participantIds: round.participantIds,
+      }),
+    [holeCount, layoutHoles, round.courseDraft?.holes, round.courseSource, round.participantIds, scoresByParticipant],
+  )
   const anonymousNames = useMemo(
     () => buildAnonymousParticipantNameMap(round.anonymousParticipants ?? ([] as RoundAnonymousParticipant[])),
     [round.anonymousParticipants],
@@ -121,6 +155,56 @@ export function ReadOnlyScorecard({ round }: Props) {
     return out
   }, [holeCount, round.participantIds, round.scoreProtocolVersion, scoresByParticipant])
 
+  const scrambleTeams = useMemo(
+    () => normalizeRoundTeams(round.participantIds, round.teams),
+    [round.participantIds, round.teams],
+  )
+
+  const isScramble = useMemo(
+    () => isScrambleRound(round.participantIds, round),
+    [round],
+  )
+
+  const readOnlyTotalRows = useMemo(() => {
+    const gridRows = isScramble
+      ? resolveScrambleGridRows({
+          participantIds: round.participantIds,
+          teams: scrambleTeams,
+          participantNames,
+        })
+      : null
+    if (gridRows) {
+      return gridRows.map((row) => ({
+        rowId: row.rowId,
+        displayName: row.displayName,
+        participantId: row.scoreParticipantId,
+      }))
+    }
+    return round.participantIds.map((participantId) => ({
+      rowId: participantId,
+      displayName: participantNames[participantId] ?? participantId,
+      participantId,
+    }))
+  }, [isScramble, participantNames, round.participantIds, scrambleTeams])
+
+  const isRoundCompleted = round.completedAt !== null
+  const resultUnits = useMemo(
+    () =>
+      buildRoundResultUnits({
+        participantIds: round.participantIds,
+        participantNames,
+        teams: isScramble ? scrambleTeams : undefined,
+      }),
+    [isScramble, participantNames, round.participantIds, scrambleTeams],
+  )
+  const totalsByParticipant = useMemo(() => {
+    const out: Record<string, { totalStrokes: number; totalPar: number; totalDelta: number; scoredHoles: number }> = {}
+    for (const [participantId, summary] of Object.entries(totals)) {
+      out[participantId] = summary
+    }
+    return out
+  }, [totals])
+
   const courseLabel = deriveCourseLabel(round, t('scoring.rounds.unnamed'))
   const startedLabel = formatTimestamp(round.startedAt, i18n.language)
   const completedLabel = formatTimestamp(round.completedAt, i18n.language)
@@ -135,28 +219,31 @@ export function ReadOnlyScorecard({ round }: Props) {
           ? t('rounds.scorecard.readOnlyMetaCompleted', { startedAt: startedLabel, completedAt: completedLabel })
           : t('rounds.scorecard.readOnlyMetaStarted', { startedAt: startedLabel })}
       </p>
-      <p className="scoring-panel__muted scoring-panel__summary-caption">{t('scoring.summary.caption')}</p>
+      {isRoundCompleted ? (
+        <RoundResultsSummary units={resultUnits} totalsByParticipant={totalsByParticipant} />
+      ) : null}
       <ScorecardSummaryGrid
         participantIds={round.participantIds}
         participantNames={participantNames}
         scoresByParticipant={scoresByParticipant}
         holeCount={holeCount}
+        holeMetadataByNumber={holeMetadataByNumber}
+        teams={isScrambleRound(round.participantIds, round) ? scrambleTeams : undefined}
       />
       <ul className="scoring-panel__read-only-totals" aria-label={t('rounds.scorecard.readOnlyTotalsAria')}>
-        {round.participantIds.map((participantId) => {
-          const summary = totals[participantId]
-          const name = participantNames[participantId] ?? participantId
+        {readOnlyTotalRows.map((row) => {
+          const summary = totals[row.participantId]
           if (!summary || summary.scoredHoles === 0) {
             return (
-              <li key={participantId} className="scoring-panel__read-only-total">
-                <span className="scoring-panel__read-only-total-name">{name}</span>
+              <li key={row.rowId} className="scoring-panel__read-only-total">
+                <span className="scoring-panel__read-only-total-name">{row.displayName}</span>
                 <span className="scoring-panel__muted">{t('scoring.rounds.noScores')}</span>
               </li>
             )
           }
           return (
-            <li key={participantId} className="scoring-panel__read-only-total">
-              <span className="scoring-panel__read-only-total-name">{name}</span>
+            <li key={row.rowId} className="scoring-panel__read-only-total">
+              <span className="scoring-panel__read-only-total-name">{row.displayName}</span>
               <span className="scoring-panel__read-only-total-value">
                 {t('scoring.participants.playerSummary', {
                   totalStrokes: summary.totalStrokes,

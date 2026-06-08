@@ -18,15 +18,49 @@ describe('ScorecardSummaryGrid', () => {
             },
           }}
           holeCount={2}
+          holeMetadataByNumber={{
+            1: { par: 3, lengthMeters: 90 },
+            2: { par: 3, lengthMeters: 100 },
+          }}
         />
       </I18nextProvider>,
     )
     expect(html).toContain('scorecard-summary-grid')
+    expect(html).toContain('scorecard-summary-grid__col-name')
     expect(html).toContain('Player One')
     expect(html).toContain('>3<')
     expect(html).toContain('>4<')
+    expect(html).toContain('>90<')
+    expect(html).toContain('>100<')
+    expect(html).toContain('>190<')
+    expect(html).toContain('scorecard-summary-grid__player-name-text')
     expect(html).toContain('scorecard-summary-grid__to-par-badge')
     expect(html).toContain('(+1)')
+  })
+
+  it('renders one row per team when scramble teams are configured', () => {
+    const html = renderToString(
+      <I18nextProvider i18n={i18n}>
+        <ScorecardSummaryGrid
+          participantIds={['u1', 'u2', 'u3']}
+          participantNames={{ u1: 'A', u2: 'B', u3: 'C' }}
+          scoresByParticipant={{
+            u1: { '1': { strokes: 3, par: 3 } },
+            u2: { '1': { strokes: 3, par: 3 } },
+            u3: { '1': { strokes: 4, par: 3 } },
+          }}
+          holeCount={1}
+          teams={[{ id: 'team:aaa', name: 'Eagles', participantIds: ['u1', 'u2'] }]}
+        />
+      </I18nextProvider>,
+    )
+    expect(html).not.toContain('scorecard-summary-grid--transposed')
+    expect(html).toContain('Eagles')
+    expect(html).not.toContain('>A<')
+    expect(html).not.toContain('>B<')
+    expect(html).toContain('C')
+    expect(html).toContain('>3<')
+    expect(html).toContain('>4<')
   })
 
   it('omits the to-par badge when no holes have been scored', () => {

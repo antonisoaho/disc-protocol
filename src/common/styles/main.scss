@@ -147,3 +147,14 @@ textarea {
     background: color-mix(in srgb, var(--surface-bg) 82%, var(--body-bg));
   }
 }
+
+// iOS Safari auto-zooms focused inputs when font-size is below 16px. The rule above wins on
+// specificity over block styles, so scoring inputs need an explicit >=16px override here.
+.scoring-panel input.scoring-panel__player-score-input,
+.scoring-panel__hole-form input.scoring-panel__input {
+  font-size: 1rem;
+}
+
+.scoring-panel input.scoring-panel__hole-nav-input {
+  font-size: 1.35rem;
+}
