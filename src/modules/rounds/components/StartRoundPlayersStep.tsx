@@ -1,8 +1,6 @@
 import type { RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { RoundTeam } from '@core/domain/roundTeams'
 import type { UserDirectoryEntry } from '@core/users/userDirectory'
-import { StartRoundTeamsSection } from '@modules/rounds/components/StartRoundTeamsSection'
 
 export type RosterEntry = {
   id: string
@@ -25,11 +23,6 @@ type Props = {
   onAnonymousNameInvalid: (input: HTMLInputElement) => void
   onAddAnonymousParticipant: () => void
   participantDisplayName: (entry: UserDirectoryEntry) => string
-  teams: RoundTeam[]
-  onAddTeam: () => void
-  onRemoveTeam: (teamId: string) => void
-  onTeamNameChange: (teamId: string, name: string) => void
-  onToggleTeamMember: (teamId: string, participantId: string) => void
   busy: boolean
 }
 
@@ -51,11 +44,6 @@ export function StartRoundPlayersStep({
   onAnonymousNameInvalid,
   onAddAnonymousParticipant,
   participantDisplayName,
-  teams,
-  onAddTeam,
-  onRemoveTeam,
-  onTeamNameChange,
-  onToggleTeamMember,
   busy,
 }: Props) {
   const { t } = useTranslation('common')
@@ -177,15 +165,7 @@ export function StartRoundPlayersStep({
       </details>
 
       {rosterEntries.length >= 2 ? (
-        <StartRoundTeamsSection
-          rosterEntries={rosterEntries}
-          teams={teams}
-          onAddTeam={onAddTeam}
-          onRemoveTeam={onRemoveTeam}
-          onTeamNameChange={onTeamNameChange}
-          onToggleTeamMember={onToggleTeamMember}
-          busy={busy}
-        />
+        <p className="scoring-panel__muted scoring-panel__hint">{t('rounds.new.wizard.teamsProfileHint')}</p>
       ) : null}
     </div>
   )

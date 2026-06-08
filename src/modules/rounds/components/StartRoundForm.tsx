@@ -12,16 +12,10 @@ import {
   FreshRoundDraftValidationError,
   normalizeFreshCourseDraft,
 } from '@core/domain/freshRoundCourse'
+import { applyProfileTeamsToRound, type ProfileScrambleTeamPreset } from '@core/domain/profileScrambleTeams'
 import { createRound } from '@core/domain/rounds'
-import {
-  createRoundTeamId,
-  normalizeRoundTeams,
-  removeParticipantFromTeams,
-  removeTeam,
-  toggleTeamMember,
-  type RoundTeam,
-} from '@core/domain/roundTeams'
 import { subscribeFollowers, subscribeFollowing } from '@core/users/follows'
+import { subscribeScrambleTeamPresets } from '@core/users/userProfile'
 import { subscribeUserDirectory, type UserDirectoryEntry } from '@core/users/userDirectory'
 import { translateUserError } from '@common/i18n/translateError'
 import { formatDraftIssues } from '@common/helpers/formatDraftIssues'
@@ -89,7 +83,7 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
   const [freshCourseNameError, setFreshCourseNameError] = useState<string | null>(null)
   const [newRoundAnonymousNameError, setNewRoundAnonymousNameError] = useState<string | null>(null)
   const [newRoundAnonymousParticipants, setNewRoundAnonymousParticipants] = useState<AnonymousParticipant[]>([])
-  const [roundTeams, setRoundTeams] = useState<RoundTeam[]>([])
+  const [profileTeamPresets, setProfileTeamPresets] = useState<ProfileScrambleTeamPreset[]>([])
   const [directoryEntries, setDirectoryEntries] = useState<UserDirectoryEntry[]>([])
   const [followingIds, setFollowingIds] = useState<string[]>([])
   const [followerIds, setFollowerIds] = useState<string[]>([])
@@ -165,6 +159,15 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
       (edges) => {
         setFollowerIds(Array.from(new Set(edges.map((edge) => edge.followerUid))))
       },
+      () => {},
+    )
+    return () => unsub()
+  }, [uid])
+
+  useEffect(() => {
+    const unsub = subscribeScrambleTeamPresets(
+      uid,
+      (presets) => setProfileTeamPresets(presets),
       () => {},
     )
     return () => unsub()
@@ -279,14 +282,18 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
 
   const reviewPlayerNames = useMemo(() => rosterEntries.map((entry) => entry.name), [rosterEntries])
 
+  const appliedRoundTeams = useMemo(() => {
+    const participantIds = Array.from(new Set([uid, ...newRoundParticipants]))
+    return applyProfileTeamsToRound(participantIds, profileTeamPresets)
+  }, [newRoundParticipants, profileTeamPresets, uid])
+
   const reviewTeamSummaries = useMemo(() => {
     const nameById = new Map(rosterEntries.map((entry) => [entry.id, entry.name]))
-    const participantIds = Array.from(new Set([uid, ...newRoundParticipants]))
-    return normalizeRoundTeams(participantIds, roundTeams).map((team) => ({
+    return appliedRoundTeams.map((team) => ({
       name: team.name,
       memberNames: team.participantIds.map((participantId) => nameById.get(participantId) ?? participantId).join(', '),
     }))
-  }, [newRoundParticipants, rosterEntries, roundTeams, uid])
+  }, [appliedRoundTeams, rosterEntries])
 
   const onAddNewRoundAnonymousParticipant = useCallback(() => {
     const anonymousInput = newRoundAnonymousNameInputRef.current
@@ -319,46 +326,15 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
       )
     }
     setNewRoundParticipants((current) => current.filter((participantId) => participantId !== entry.id))
-    setRoundTeams((current) => removeParticipantFromTeams(current, entry.id))
   }, [])
 
   const onToggleParticipant = useCallback((participantId: string) => {
-    let removing = false
     setNewRoundParticipants((current) => {
-      removing = current.includes(participantId)
-      if (removing) {
+      if (current.includes(participantId)) {
         return current.filter((id) => id !== participantId)
       }
       return [...current, participantId]
     })
-    if (removing) {
-      setRoundTeams((current) => removeParticipantFromTeams(current, participantId))
-    }
-  }, [])
-
-  const onAddTeam = useCallback(() => {
-    setRoundTeams((current) => [
-      ...current,
-      {
-        id: createRoundTeamId(),
-        name: t('rounds.new.wizard.teams.defaultName', { number: current.length + 1 }),
-        participantIds: [],
-      },
-    ])
-  }, [t])
-
-  const onRemoveTeam = useCallback((teamId: string) => {
-    setRoundTeams((current) => removeTeam(current, teamId))
-  }, [])
-
-  const onTeamNameChange = useCallback((teamId: string, name: string) => {
-    setRoundTeams((current) =>
-      current.map((team) => (team.id === teamId ? { ...team, name } : team)),
-    )
-  }, [])
-
-  const onToggleTeamMember = useCallback((teamId: string, participantId: string) => {
-    setRoundTeams((current) => toggleTeamMember(current, teamId, participantId))
   }, [])
 
   const onCourseModeChange = useCallback(
@@ -444,7 +420,7 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
         (participantId) => participantId.trim().length > 0,
       )
       const anonymousParticipants = mergeAnonymousParticipants(participantIds, newRoundAnonymousParticipants)
-      const teams = normalizeRoundTeams(participantIds, roundTeams)
+      const teams = applyProfileTeamsToRound(participantIds, profileTeamPresets)
       let id = ''
       if (courseMode === 'saved') {
         if (!selectedSavedCourse) {
@@ -495,7 +471,6 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
       setNewRoundAnonymousName('')
       setNewRoundAnonymousNameError(null)
       setNewRoundAnonymousParticipants([])
-      setRoundTeams([])
       setNewRoundParticipants([uid])
       setFreshHoleChoice(18)
       setCourseMode('quick')
@@ -525,7 +500,7 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
     newRoundAnonymousParticipants,
     newRoundParticipants,
     onRoundCreated,
-    roundTeams,
+    profileTeamPresets,
     selectedSavedCourse,
     t,
     uid,
@@ -613,11 +588,6 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
           onAnonymousNameInvalid={(input) => setNewRoundAnonymousNameError(resolveAnonymousNameError(input))}
           onAddAnonymousParticipant={onAddNewRoundAnonymousParticipant}
           participantDisplayName={participantDisplayName}
-          teams={roundTeams}
-          onAddTeam={onAddTeam}
-          onRemoveTeam={onRemoveTeam}
-          onTeamNameChange={onTeamNameChange}
-          onToggleTeamMember={onToggleTeamMember}
           busy={busy}
         />
       ) : null}
