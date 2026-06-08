@@ -9,7 +9,11 @@ type Props = {
   onLengthChange: (value: string) => void
   disablePar?: boolean
   disableLength: boolean
-  saveStateLabel: string
+  /** Shown only for dirty/error — not while saving or saved. */
+  saveStatusLabel?: string
+  saveFailed?: boolean
+  onRetrySave?: () => void
+  isSaving?: boolean
   onSubmit: FormEventHandler<HTMLFormElement>
   children: ReactNode
 }
@@ -22,7 +26,10 @@ export function HoleForm({
   onLengthChange,
   disablePar = false,
   disableLength,
-  saveStateLabel,
+  saveStatusLabel,
+  saveFailed = false,
+  onRetrySave,
+  isSaving = false,
   onSubmit,
   children,
 }: Props) {
@@ -32,6 +39,7 @@ export function HoleForm({
     <form
       className="scoring-panel__hole-form"
       aria-label={t('scoring.holeForm.sectionAria', { holeNumber })}
+      aria-busy={isSaving}
       onSubmit={onSubmit}
     >
       <div className="scoring-panel__hole-meta-row">
@@ -46,7 +54,7 @@ export function HoleForm({
             value={parValue}
             onChange={(event) => onParChange(event.target.value)}
             aria-label={t('scoring.holeForm.parAria', { holeNumber })}
-            disabled={disablePar}
+            disabled={disablePar || isSaving}
           />
         </label>
         <label className="scoring-panel__field scoring-panel__field--compact field">
@@ -60,13 +68,28 @@ export function HoleForm({
             value={lengthValue}
             onChange={(event) => onLengthChange(event.target.value)}
             aria-label={t('scoring.holeForm.lengthAria', { holeNumber })}
-            disabled={disableLength}
+            disabled={disableLength || isSaving}
           />
         </label>
       </div>
-      <p className="scoring-panel__muted scoring-panel__save-status" role="status" aria-live="polite">
-        {saveStateLabel}
-      </p>
+      {saveStatusLabel || (saveFailed && onRetrySave) ? (
+      <div className="scoring-panel__save-status-row">
+        {saveStatusLabel ? (
+        <p className="scoring-panel__muted scoring-panel__save-status" role="status" aria-live="polite">
+          {saveStatusLabel}
+        </p>
+        ) : null}
+        {saveFailed && onRetrySave ? (
+          <button
+            type="button"
+            className="scoring-panel__button scoring-panel__button--inline scoring-panel__retry-save"
+            onClick={onRetrySave}
+          >
+            {t('scoring.buttons.retrySave')}
+          </button>
+        ) : null}
+      </div>
+      ) : null}
       {children}
     </form>
   )

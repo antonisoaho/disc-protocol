@@ -52,11 +52,23 @@ export function stepHoleNumber(
   return clampHoleNumber(currentHoleNumber + direction, holeCount)
 }
 
+export function hasUnsavedHoleDraft(params: {
+  courseSource: RoundCourseSource
+  participantIds: string[]
+  draft: HoleDraftInputs
+  persisted: PersistedHoleState
+  allowSavedMetadataAdjust?: boolean
+}): boolean {
+  return mergeAutosavePayload(params).hasMeaningfulChange
+}
+
 export function mergeAutosavePayload(params: {
   courseSource: RoundCourseSource
   participantIds: string[]
   draft: HoleDraftInputs
   persisted: PersistedHoleState
+  /** When set (e.g. scramble), only persist scores for these roster ids. */
+  scoreParticipantIds?: string[]
   /** When true, saved-layout rounds may sync par + length adjustments through the admin path. */
   allowSavedMetadataAdjust?: boolean
 }): HoleAutosavePayload {
@@ -85,7 +97,8 @@ export function mergeAutosavePayload(params: {
     par: number
   }> = []
 
-  for (const participantUid of params.participantIds) {
+  const scoreParticipantIds = params.scoreParticipantIds ?? params.participantIds
+  for (const participantUid of scoreParticipantIds) {
     const rawScoreInput = params.draft.scoreInputs[participantUid] ?? ''
     const trimmedScoreInput = rawScoreInput.trim()
     if (trimmedScoreInput.length === 0) continue

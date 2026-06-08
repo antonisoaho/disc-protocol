@@ -198,6 +198,32 @@ describe('mergeAutosavePayload', () => {
     expect(payload.hasMeaningfulChange).toBe(true)
   })
 
+  it('persists only scoreParticipantIds when set (scramble team score)', () => {
+    const payload = mergeAutosavePayload({
+      courseSource: 'saved',
+      participantIds: ['u-1', 'u-2'],
+      scoreParticipantIds: ['u-1'],
+      draft: {
+        parInput: '3',
+        lengthInput: '',
+        scoreInputs: {
+          'u-1': '4',
+          'u-2': '4',
+        },
+      },
+      persisted: {
+        par: 3,
+        lengthMeters: null,
+        participantScores: {},
+      },
+    })
+
+    expect(payload.participantScoreUpdates).toEqual([
+      { participantUid: 'u-1', strokes: 4, par: 3 },
+    ])
+    expect(payload.hasMeaningfulChange).toBe(true)
+  })
+
   it('skips savedLengthSync when allowSavedMetadataAdjust is false', () => {
     const payload = mergeAutosavePayload({
       courseSource: 'saved',
