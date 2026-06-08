@@ -13,3 +13,12 @@ export function resolveScorecardBackPath(state: unknown): string {
   if (value.startsWith('//')) return '/'
   return value
 }
+
+export function resolveScorecardBackPlayerName(state: unknown): string | null {
+  if (!state || typeof state !== 'object') return null
+  if (!('backToPlayerName' in state)) return null
+  const value = (state as { backToPlayerName: unknown }).backToPlayerName
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}

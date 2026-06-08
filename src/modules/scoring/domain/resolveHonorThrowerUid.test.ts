@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { resolveHonorThrowerUid } from '@modules/scoring/domain/resolveHonorThrowerUid'
+import {
+  resolveHonorDisplayLabel,
+  resolveHonorThrowerUid,
+} from '@modules/scoring/domain/resolveHonorThrowerUid'
 import type { ParticipantHoleScores } from '@core/domain/scorecardTable'
 
 describe('resolveHonorThrowerUid', () => {
@@ -48,5 +51,45 @@ describe('resolveHonorThrowerUid', () => {
       b: { '1': { strokes: 3, par: 3 }, '2': { strokes: 3, par: 3 } },
     }
     expect(resolveHonorThrowerUid(['a', 'b'], s, 3)).toBe('a')
+  })
+})
+
+describe('resolveHonorDisplayLabel', () => {
+  it('returns player name for individual rounds', () => {
+    const scores: ParticipantHoleScores = {
+      a: { '1': { strokes: 3, par: 3 } },
+      b: { '1': { strokes: 4, par: 3 } },
+    }
+    expect(
+      resolveHonorDisplayLabel({
+        participantIds: ['a', 'b'],
+        scores,
+        activeHoleNumber: 2,
+        participantNames: { a: 'Alice', b: 'Bob' },
+        isScramble: false,
+      }),
+    ).toBe('Alice')
+  })
+
+  it('returns team name for scramble rounds', () => {
+    const scores: ParticipantHoleScores = {
+      a: { '1': { strokes: 3, par: 3 } },
+      b: { '1': { strokes: 3, par: 3 } },
+      c: { '1': { strokes: 4, par: 3 } },
+      d: { '1': { strokes: 4, par: 3 } },
+    }
+    expect(
+      resolveHonorDisplayLabel({
+        participantIds: ['a', 'b', 'c', 'd'],
+        scores,
+        activeHoleNumber: 2,
+        participantNames: { a: 'Alice', b: 'Bob', c: 'Carol', d: 'Dave' },
+        isScramble: true,
+        teams: [
+          { id: 'team:kings', name: 'The kings', participantIds: ['a', 'b'] },
+          { id: 'team:bb', name: 'BB', participantIds: ['c', 'd'] },
+        ],
+      }),
+    ).toBe('The kings')
   })
 })
