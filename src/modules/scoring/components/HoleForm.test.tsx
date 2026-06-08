@@ -16,7 +16,7 @@ describe('HoleForm', () => {
           onParChange={() => {}}
           onLengthChange={() => {}}
           disableLength={false}
-          saveStateLabel="Saved"
+          saveStatusLabel="Unsaved changes"
           onSubmit={() => {}}
         >
           <button type="submit">Finish round</button>

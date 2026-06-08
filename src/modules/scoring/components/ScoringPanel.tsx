@@ -16,13 +16,9 @@ import {
   addParticipantToRound,
   completeRoundAndPromote,
   deleteRound,
-  recordParticipantHoleScoreTransaction,
   removeParticipantFromRound,
   replaceRoundParticipant,
   subscribeMyRounds,
-  syncSavedRoundHoleLengthForHole,
-  syncSavedRoundHoleParForHole,
-  updateFreshRoundHoleMetadata,
 } from '@core/domain/rounds'
 import type { RoundDoc } from '@core/domain/round'
 import { subscribeFollowers, subscribeFollowing } from '@core/users/follows'
@@ -33,19 +29,30 @@ import {
   createAnonymousParticipantId,
   deriveFriendUidSet,
   filterParticipantDirectoryEntries,
-  isAnonymousParticipantId,
   normalizeAnonymousParticipantName,
 } from '@core/domain/participantRoster'
-import { HoleForm } from '@modules/scoring/components/HoleForm'
-import { HoleStepper } from '@modules/scoring/components/HoleStepper'
-import { mergeAutosavePayload, type HoleDraftInputs, clampHoleNumber, stepHoleNumber } from '@modules/scoring/domain/holeAutosave'
+import { ScoringPanelParticipantsTab } from '@modules/scoring/components/ScoringPanelParticipantsTab'
+import { ScoringPanelResultsTab } from '@modules/scoring/components/ScoringPanelResultsTab'
+import { ScoringPanelScorecardTab } from '@modules/scoring/components/ScoringPanelScorecardTab'
+import { clampHoleNumber, stepHoleNumber } from '@modules/scoring/domain/holeAutosave'
 import { resolveHoleSubmitMode } from '@modules/scoring/domain/holeSubmit'
-import { PlayerScoreRows } from '@modules/scoring/components/PlayerScoreRows'
-import { ScorecardSummaryGrid } from '@modules/scoring/components/ScorecardSummaryGrid'
+import { buildRoundResultUnits } from '@modules/scoring/domain/buildRoundResultStandings'
+import { isScrambleRound, resolveScrambleGridRows } from '@core/domain/scrambleScoring'
+import { normalizeRoundTeams } from '@core/domain/roundTeams'
 import { aggregateScoreProtocol, normalizeScoreProtocol } from '@core/domain/scoreProtocol'
 import { inferRoundHoleCount } from '@core/domain/inferRoundHoleCount'
-import { computeGrandTotals, computeParticipantTotals } from '@core/domain/scorecardTable'
-import { resolveHonorThrowerUid } from '@modules/scoring/domain/resolveHonorThrowerUid'
+import {
+  computeGrandTotals,
+  computeParticipantTotals,
+  countFullyScoredHoles,
+} from '@core/domain/scorecardTable'
+import { buildRoundHoleMetadataByNumber } from '@modules/scoring/domain/buildRoundHoleMetadata'
+import { resolveHonorDisplayLabel } from '@modules/scoring/domain/resolveHonorThrowerUid'
+import {
+  SCORING_PANEL_ANONYMOUS_NAME_MAX_LENGTH,
+  scoringParticipantDisplayName,
+} from '@modules/scoring/domain/scoringPanelFormat'
+import { useScoringPanelHoleSave } from '@modules/scoring/hooks/useScoringPanelHoleSave'
 
 type Props = {
   user: User
@@ -53,25 +60,7 @@ type Props = {
   onAfterRoundDeleted?: () => void
 }
 
-const AUTOSAVE_DEBOUNCE_MS = 550
-const ANONYMOUS_NAME_MAX_LENGTH = 80
-const NON_WHITESPACE_PATTERN = '.*\\S.*'
-
-type AppTabId = 'scorecard' | 'participants'
-type SaveState = 'saved' | 'dirty' | 'saving' | 'error'
-
-function formatDelta(delta: number): string {
-  return delta > 0 ? `+${delta}` : `${delta}`
-}
-
-function parseIntegerInput(value: string): number | null {
-  if (!/^\d+$/.test(value.trim())) return null
-  return Number(value)
-}
-
-function participantDisplayName(entry: UserDirectoryEntry): string {
-  return entry.displayName.trim().length > 0 ? entry.displayName : entry.uid
-}
+type AppTabId = 'scorecard' | 'results' | 'participants'
 
 function readParticipantHoleScores(data: RoundDoc, fallbackUid: string) {
   const next: Record<string, Record<string, { strokes: number; par: number }>> = {}
@@ -127,13 +116,9 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
   const [followingIds, setFollowingIds] = useState<string[]>([])
   const [followerIds, setFollowerIds] = useState<string[]>([])
   const [holeNumber, setHoleNumber] = useState(1)
-  const [holeDraft, setHoleDraft] = useState<HoleDraftInputs | null>(null)
-  const [saveState, setSaveState] = useState<SaveState>('saved')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
-  const autosaveTimerRef = useRef<number | null>(null)
-  const holeSaveInFlightRef = useRef<Promise<boolean> | null>(null)
   const inviteAnonymousNameInputRef = useRef<HTMLInputElement | null>(null)
 
   const resolveAnonymousNameError = useCallback(
@@ -143,7 +128,7 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
       }
       if (input.validity.tooLong) {
         return t('scoring.messages.anonymousNameTooLong', {
-          max: ANONYMOUS_NAME_MAX_LENGTH,
+          max: SCORING_PANEL_ANONYMOUS_NAME_MAX_LENGTH,
         })
       }
       return input.validationMessage || t('scoring.messages.anonymousNameRequired')
@@ -243,14 +228,6 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
   )
   const activeHoleNumber = selectedHoleCount ? clampHoleNumber(holeNumber, selectedHoleCount) : 1
 
-  useEffect(() => {
-    return () => {
-      if (autosaveTimerRef.current !== null) {
-        window.clearTimeout(autosaveTimerRef.current)
-      }
-    }
-  }, [])
-
   const directoryByUid = useMemo(() => {
     const map: Record<string, UserDirectoryEntry> = {}
     for (const entry of directoryEntries) {
@@ -269,7 +246,7 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
   const allDirectoryEntries = useMemo(
     () =>
       Object.values(directoryByUid).sort((a, b) =>
-        participantDisplayName(a).localeCompare(participantDisplayName(b), undefined, {
+        scoringParticipantDisplayName(a).localeCompare(scoringParticipantDisplayName(b), undefined, {
           sensitivity: 'base',
         }),
       ),
@@ -328,7 +305,7 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
         names[participantId] = anonymousDisplayName
         continue
       }
-      names[participantId] = participantDisplayName(
+      names[participantId] = scoringParticipantDisplayName(
         directoryByUid[participantId] ?? {
           uid: participantId,
           displayName: participantId,
@@ -338,6 +315,16 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
     }
     return names
   }, [directoryByUid, selected, selectedAnonymousNameMap])
+
+  const selectedScrambleTeams = useMemo(() => {
+    if (!selected) return []
+    return normalizeRoundTeams(selected.data.participantIds, selected.data.teams)
+  }, [selected])
+
+  const isScrambleScoring = useMemo(
+    () => (selected ? isScrambleRound(selected.data.participantIds, selected.data) : false),
+    [selected],
+  )
 
   const currentUserHoleScores = useMemo(() => {
     if (!selected || !selectedParticipantScores) return {}
@@ -365,20 +352,93 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
 
   const honorHint = useMemo(() => {
     if (!selected || !selectedParticipantScores) return null
-    const honorUid = resolveHonorThrowerUid(
-      selected.data.participantIds,
-      selectedParticipantScores,
+    const honorLabel = resolveHonorDisplayLabel({
+      participantIds: selected.data.participantIds,
+      scores: selectedParticipantScores,
       activeHoleNumber,
-    )
-    if (!honorUid) return null
-    const name = selectedParticipantNames[honorUid] ?? honorUid
-    return t('scoring.stepper.honorThrowFirst', { names: name })
-  }, [activeHoleNumber, selected, selectedParticipantNames, selectedParticipantScores, t])
+      participantNames: selectedParticipantNames,
+      isScramble: isScrambleScoring,
+      teams: selectedScrambleTeams,
+    })
+    if (!honorLabel) return null
+    return t('scoring.stepper.honorThrowFirst', { names: honorLabel })
+  }, [
+    activeHoleNumber,
+    isScrambleScoring,
+    selected,
+    selectedParticipantNames,
+    selectedParticipantScores,
+    selectedScrambleTeams,
+    t,
+  ])
 
   const selectedGrandTotals = useMemo(
     () => computeGrandTotals(selectedParticipantTotals),
     [selectedParticipantTotals],
   )
+
+  const fullyScoredHoles = useMemo(() => {
+    if (!selected || !selectedParticipantScores || !selectedHoleCount) {
+      return 0
+    }
+    const scrambleRows = isScrambleScoring
+      ? resolveScrambleGridRows({
+          participantIds: selected.data.participantIds,
+          teams: selectedScrambleTeams,
+          participantNames: selectedParticipantNames,
+        })
+      : null
+    const requiredScoreParticipantIds = scrambleRows
+      ? scrambleRows.map((row) => row.scoreParticipantId)
+      : selected.data.participantIds
+    return countFullyScoredHoles({
+      holeCount: selectedHoleCount,
+      scoresByParticipant: selectedParticipantScores,
+      requiredScoreParticipantIds,
+    })
+  }, [
+    isScrambleScoring,
+    selected,
+    selectedHoleCount,
+    selectedParticipantNames,
+    selectedParticipantScores,
+    selectedScrambleTeams,
+  ])
+
+  const scoringParticipantIds = useMemo(() => {
+    if (!selected) {
+      return []
+    }
+    const scrambleRows = isScrambleScoring
+      ? resolveScrambleGridRows({
+          participantIds: selected.data.participantIds,
+          teams: selectedScrambleTeams,
+          participantNames: selectedParticipantNames,
+        })
+      : null
+    return scrambleRows
+      ? scrambleRows.map((row) => row.scoreParticipantId)
+      : selected.data.participantIds
+  }, [isScrambleScoring, selected, selectedParticipantNames, selectedScrambleTeams])
+
+  const selectedHoleMetadataByNumber = useMemo(() => {
+    if (!selected || !selectedHoleCount) {
+      return {}
+    }
+    return buildRoundHoleMetadataByNumber({
+      holeCount: selectedHoleCount,
+      courseSource: selected.data.courseSource,
+      courseDraftHoles: selected.data.courseDraft?.holes,
+      layoutHoles: layoutTemplateDoc?.holes,
+      scoresByParticipant: selectedParticipantScores ?? {},
+      participantIds: selected.data.participantIds,
+    })
+  }, [
+    layoutTemplateDoc?.holes,
+    selected,
+    selectedHoleCount,
+    selectedParticipantScores,
+  ])
 
   const selectedFreshHoleByNumber = useMemo(() => {
     const map: Record<number, { number: number; par?: number | null; lengthMeters?: number | null }> = {}
@@ -466,166 +526,31 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
       scoreInputs: nextScoreInputs,
     }
   }, [persistedHoleState, selected])
-  const effectiveHoleDraft = holeDraft ?? defaultHoleDraft
 
-  const saveStateLabel = useMemo(() => {
-    switch (saveState) {
-      case 'dirty':
-        return t('scoring.saveState.unsavedChanges')
-      case 'saving':
-        return t('scoring.saveState.saving')
-      case 'error':
-        return t('scoring.saveState.saveFailed')
-      default:
-        return t('scoring.saveState.saved')
-    }
-  }, [saveState, t])
-
-  const updateHoleDraft = useCallback(
-    (updater: (current: HoleDraftInputs) => HoleDraftInputs) => {
-      setHoleDraft((current) => {
-        const base = current ?? effectiveHoleDraft
-        if (!base) return current
-        return updater(base)
-      })
-      setSaveState('dirty')
-      setNotice(null)
-    },
-    [effectiveHoleDraft],
-  )
-
-  const saveCurrentHole = useCallback(async (): Promise<boolean> => {
-    if (holeSaveInFlightRef.current) {
-      return holeSaveInFlightRef.current
-    }
-    const run = async (): Promise<boolean> => {
-      if (!selected || !roundId || !effectiveHoleDraft || !persistedHoleState) return true
-      const roundCourseSource = selected.data.courseSource ?? 'saved'
-      const payload = mergeAutosavePayload({
-        courseSource: roundCourseSource,
-        participantIds: selected.data.participantIds,
-        draft: effectiveHoleDraft,
-        persisted: persistedHoleState,
-        allowSavedMetadataAdjust: canAdjustSavedCourseMetadata,
-      })
-
-      if (payload.validationError) {
-        setError(payload.validationError)
-        setSaveState('error')
-        return false
-      }
-
-      if (!payload.hasMeaningfulChange) {
-        setSaveState('saved')
-        return true
-      }
-
-      setSaveState('saving')
-      setError(null)
-      try {
-        if (roundCourseSource === 'fresh' && payload.metadata) {
-          await updateFreshRoundHoleMetadata({
-            roundId: roundId,
-            actorUid: uid,
-            holeNumber: activeHoleNumber,
-            metadata: payload.metadata,
-          })
-        }
-        if (payload.savedParSync) {
-          await syncSavedRoundHoleParForHole({
-            roundId: roundId,
-            actorUid: uid,
-            holeNumber: activeHoleNumber,
-            par: payload.savedParSync.par,
-          })
-        }
-        if (payload.savedLengthSync) {
-          await syncSavedRoundHoleLengthForHole({
-            roundId: roundId,
-            actorUid: uid,
-            holeNumber: activeHoleNumber,
-            lengthMeters: payload.savedLengthSync.lengthMeters,
-          })
-        }
-        await Promise.all(
-          payload.participantScoreUpdates.map((update) =>
-            recordParticipantHoleScoreTransaction(
-              roundId,
-              uid,
-              update.participantUid,
-              activeHoleNumber,
-              update.strokes,
-              update.par,
-            ),
-          ),
-        )
-        setSaveState('saved')
-        return true
-      } catch (nextError) {
-        if (nextError instanceof FreshRoundDraftValidationError) {
-          setError(formatDraftIssues(t, nextError.issues))
-        } else {
-          setError(
-            nextError instanceof Error
-              ? translateUserError(t, nextError.message)
-              : t('scoring.errors.failedToAutosaveHole'),
-          )
-        }
-        setSaveState('error')
-        return false
-      }
-    }
-    const p = run()
-    holeSaveInFlightRef.current = p
-    try {
-      return await p
-    } finally {
-      holeSaveInFlightRef.current = null
-    }
-  }, [
-    activeHoleNumber,
-    canAdjustSavedCourseMetadata,
+  const {
     effectiveHoleDraft,
-    persistedHoleState,
-    selected,
+    saveState,
+    isSaving,
+    holeFormSaveStatusLabel,
+    updateHoleDraft,
+    flushAndSaveHole,
+    leaveHole,
+    resetHoleDraft,
+  } = useScoringPanelHoleSave({
     roundId,
-    t,
     uid,
-  ])
-
-  useEffect(() => {
-    if (saveState !== 'dirty' || !selected || !effectiveHoleDraft || !persistedHoleState) return
-    if (autosaveTimerRef.current !== null) {
-      window.clearTimeout(autosaveTimerRef.current)
-    }
-    autosaveTimerRef.current = window.setTimeout(() => {
-      void saveCurrentHole()
-    }, AUTOSAVE_DEBOUNCE_MS)
-    return () => {
-      if (autosaveTimerRef.current !== null) {
-        window.clearTimeout(autosaveTimerRef.current)
-        autosaveTimerRef.current = null
-      }
-    }
-  }, [effectiveHoleDraft, persistedHoleState, saveCurrentHole, saveState, selected])
-
-  const navigateToHole = useCallback(
-    async (targetHoleNumber: number) => {
-      if (!selectedHoleCount) return
-      const nextHoleNumber = clampHoleNumber(targetHoleNumber, selectedHoleCount)
-      if (nextHoleNumber === activeHoleNumber) return
-      if (autosaveTimerRef.current !== null) {
-        window.clearTimeout(autosaveTimerRef.current)
-        autosaveTimerRef.current = null
-      }
-      const saved = await saveCurrentHole()
-      if (!saved) return
-      setHoleNumber(nextHoleNumber)
-      setHoleDraft(null)
-      setSaveState('saved')
-    },
-    [activeHoleNumber, saveCurrentHole, selectedHoleCount],
-  )
+    t,
+    selected,
+    selectedHoleCount,
+    activeHoleNumber,
+    setHoleNumber,
+    persistedHoleState,
+    defaultHoleDraft,
+    scoringParticipantIds,
+    canAdjustSavedCourseMetadata,
+    setError,
+    setNotice,
+  })
 
   const onAddParticipant = useCallback(async () => {
     if (!roundId || !selected) return
@@ -754,8 +679,7 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
         if (deletedRoundId === roundId) {
           clearRosterReplaceFlow()
           setHoleNumber(1)
-          setHoleDraft(null)
-          setSaveState('saved')
+          resetHoleDraft()
           onAfterRoundDeleted?.()
         }
         setNotice(t('scoring.notices.roundDeleted'))
@@ -769,7 +693,7 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
         setBusy(false)
       }
     },
-    [clearRosterReplaceFlow, isAdmin, onAfterRoundDeleted, roundId, t, uid],
+    [clearRosterReplaceFlow, isAdmin, onAfterRoundDeleted, resetHoleDraft, roundId, t, uid],
   )
 
   const onComplete = useCallback(async () => {
@@ -804,6 +728,8 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
             details: formatDraftIssues(t, result.validationIssues ?? []),
           }),
         )
+      } else {
+        setActiveTab('results')
       }
     } catch (nextError) {
       setError(
@@ -845,6 +771,19 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
     }
   }, [roundId, t, uid])
 
+  const isRoundCompleted = selected?.data.completedAt !== null && selected?.data.completedAt !== undefined
+
+  const selectedResultUnits = useMemo(() => {
+    if (!selected) {
+      return []
+    }
+    return buildRoundResultUnits({
+      participantIds: selected.data.participantIds,
+      participantNames: selectedParticipantNames,
+      teams: isScrambleScoring ? selectedScrambleTeams : undefined,
+    })
+  }, [isScrambleScoring, selected, selectedParticipantNames, selectedScrambleTeams])
+
   const canCompleteRound = selected ? selected.data.ownerId === uid || isAdmin : false
   const holeSubmitMode = selectedHoleCount
     ? resolveHoleSubmitMode({ activeHoleNumber, holeCount: selectedHoleCount })
@@ -855,37 +794,43 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
       : t('scoring.buttons.saveLastHole')
     : t('scoring.stepper.nextHoleCta')
 
+  const submitHoleFormAction = useCallback(async () => {
+    if (!selectedHoleCount || busy || isSaving || !effectiveHoleDraft || !holeSubmitMode) return
+
+    if (holeSubmitMode === 'complete') {
+      const saved = await leaveHole(activeHoleNumber)
+      if (saved && canCompleteRound) {
+        await onComplete()
+      }
+      return
+    }
+
+    await leaveHole(stepHoleNumber(activeHoleNumber, 1, selectedHoleCount))
+  }, [
+    activeHoleNumber,
+    busy,
+    canCompleteRound,
+    effectiveHoleDraft,
+    holeSubmitMode,
+    isSaving,
+    leaveHole,
+    onComplete,
+    selectedHoleCount,
+  ])
+
+  const onCompleteWithSave = useCallback(async () => {
+    const saved = await leaveHole(activeHoleNumber)
+    if (saved) {
+      await onComplete()
+    }
+  }, [activeHoleNumber, leaveHole, onComplete])
+
   const onSubmitHoleForm = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault()
-      if (!selectedHoleCount || busy || !effectiveHoleDraft || !holeSubmitMode) return
-
-      if (holeSubmitMode === 'complete') {
-        if (autosaveTimerRef.current !== null) {
-          window.clearTimeout(autosaveTimerRef.current)
-          autosaveTimerRef.current = null
-        }
-        void saveCurrentHole().then((saved) => {
-          if (saved && canCompleteRound) {
-            void onComplete()
-          }
-        })
-        return
-      }
-
-      void navigateToHole(stepHoleNumber(activeHoleNumber, 1, selectedHoleCount))
+      void submitHoleFormAction()
     },
-    [
-      activeHoleNumber,
-      busy,
-      canCompleteRound,
-      effectiveHoleDraft,
-      holeSubmitMode,
-      navigateToHole,
-      onComplete,
-      saveCurrentHole,
-      selectedHoleCount,
-    ],
+    [submitHoleFormAction],
   )
 
   return (
@@ -913,6 +858,15 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
         <button
           type="button"
           role="tab"
+          aria-selected={activeTab === 'results'}
+          className={`scoring-panel__tab${activeTab === 'results' ? ' scoring-panel__tab--active' : ''}`}
+          onClick={() => setActiveTab('results')}
+        >
+          {t('scoring.tabs.results')}
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={activeTab === 'participants'}
           className={`scoring-panel__tab${activeTab === 'participants' ? ' scoring-panel__tab--active' : ''}`}
           onClick={() => setActiveTab('participants')}
@@ -922,409 +876,91 @@ export function ScoringPanel({ user, roundId, onAfterRoundDeleted }: Props) {
       </div>
 
       {activeTab === 'scorecard' ? (
-        <>
-          {roundMissingAfterSync ? (
-            <p className="scoring-panel__error" role="alert">
-              {t('rounds.scorecard.notFoundOrNoAccess')}
-            </p>
-          ) : null}
+        <ScoringPanelScorecardTab
+          roundId={roundId}
+          canDeleteRound={Boolean(selected && (selected.data.ownerId === uid || isAdmin))}
+          roundMissingAfterSync={roundMissingAfterSync}
+          selected={selected}
+          selectedSummary={selectedSummary}
+          fullyScoredHoles={fullyScoredHoles}
+          selectedHoleCount={selectedHoleCount}
+          activeHoleNumber={activeHoleNumber}
+          leaveHole={leaveHole}
+          stepHoleNumber={stepHoleNumber}
+          controlsDisabled={busy || isSaving}
+          saveInProgress={isSaving}
+          effectiveHoleDraft={effectiveHoleDraft}
+          honorHint={honorHint}
+          updateHoleDraft={updateHoleDraft}
+          savedCourseMetadataLocked={savedCourseMetadataLocked}
+          holeFormSaveStatusLabel={holeFormSaveStatusLabel}
+          saveFailed={saveState === 'error'}
+          onRetrySave={() => void flushAndSaveHole()}
+          onSubmitHoleForm={onSubmitHoleForm}
+          scrambleTeams={isScrambleScoring ? selectedScrambleTeams : undefined}
+          selectedParticipantNames={selectedParticipantNames}
+          selectedParticipantTotals={selectedParticipantTotals}
+          holeSubmitMode={holeSubmitMode}
+          holeSubmitLabel={holeSubmitLabel}
+          canCompleteRound={canCompleteRound}
+          onCompleteWithSave={onCompleteWithSave}
+          onRetryPromotion={onRetryPromotion}
+          onDeleteRound={onDeleteRound}
+        />
+      ) : null}
 
-          {selected ? (
-            <div className="scoring-panel__section">
-              <span className="scoring-panel__label">{t('scoring.sections.holeByHole')}</span>
-              {selectedSummary ? (
-                <p className="scoring-panel__muted">
-                  {t('scoring.rounds.roundTotal', {
-                    totalStrokes: selectedSummary.totalStrokes,
-                    totalPar: selectedSummary.totalPar,
-                    totalDelta: formatDelta(selectedSummary.totalDelta),
-                    scoredHoles: selectedSummary.scoredHoles,
-                    holeCount: selectedHoleCount ?? 0,
-                  })}
-                </p>
-              ) : null}
-              <p className="scoring-panel__muted scoring-panel__summary-caption">{t('scoring.summary.caption')}</p>
-              <ScorecardSummaryGrid
-                participantIds={selected.data.participantIds}
-                participantNames={selectedParticipantNames}
-                scoresByParticipant={selectedParticipantScores ?? {}}
-                holeCount={selectedHoleCount ?? 0}
-              />
-              <HoleStepper
-                key={`${roundId}:${activeHoleNumber}`}
-                holeCount={selectedHoleCount ?? 1}
-                currentHole={activeHoleNumber}
-                onSelectHole={(nextHole) => void navigateToHole(nextHole)}
-                onPrevious={() => {
-                  if (!selectedHoleCount) return
-                  void navigateToHole(stepHoleNumber(activeHoleNumber, -1, selectedHoleCount))
-                }}
-                onNext={() => {
-                  if (!selectedHoleCount) return
-                  void navigateToHole(stepHoleNumber(activeHoleNumber, 1, selectedHoleCount))
-                }}
-                disabled={busy || !effectiveHoleDraft}
-                honorHint={honorHint}
-              />
-              {effectiveHoleDraft ? (
-                <HoleForm
-                  holeNumber={activeHoleNumber}
-                  parValue={effectiveHoleDraft.parInput}
-                  lengthValue={effectiveHoleDraft.lengthInput}
-                  onParChange={(value) =>
-                    updateHoleDraft((current) => ({
-                      ...current,
-                      parInput: value,
-                    }))
-                  }
-                  onLengthChange={(value) =>
-                    updateHoleDraft((current) => ({
-                      ...current,
-                      lengthInput: value,
-                    }))
-                  }
-                  disablePar={savedCourseMetadataLocked}
-                  disableLength={
-                    selected.data.courseSource === 'fresh' ? false : savedCourseMetadataLocked
-                  }
-                  saveStateLabel={saveStateLabel}
-                  onSubmit={onSubmitHoleForm}
-                >
-                  <>
-                    <PlayerScoreRows
-                      participantIds={selected.data.participantIds}
-                      participantNames={selectedParticipantNames}
-                      scoreInputs={effectiveHoleDraft.scoreInputs}
-                      onScoreChange={(participantUid, value) =>
-                        updateHoleDraft((current) => ({
-                          ...current,
-                          scoreInputs: {
-                            ...current.scoreInputs,
-                            [participantUid]: value,
-                          },
-                        }))
-                      }
-                      parValue={parseIntegerInput(effectiveHoleDraft.parInput)}
-                    />
-                    {selectedHoleCount ? (
-                      <div className="scoring-panel__next-hole-row">
-                        <button
-                          type="submit"
-                          className="scoring-panel__button scoring-panel__button--primary scoring-panel__next-hole"
-                          disabled={
-                            busy || !effectiveHoleDraft || !holeSubmitMode
-                          }
-                        >
-                          {holeSubmitLabel}
-                        </button>
-                      </div>
-                    ) : null}
-                  </>
-                </HoleForm>
-              ) : (
-                <p className="scoring-panel__muted">{t('scoring.rounds.selectRoundToLoadHoleForm')}</p>
-              )}
-              {savedCourseMetadataLocked ? (
-                <p className="scoring-panel__muted scoring-panel__hint">{t('scoring.form.savedLayoutLockedHint')}</p>
-              ) : null}
-              <p className="scoring-panel__legend-footnote">
-                {t('scoring.legend')}
-              </p>
-              <p className="scoring-panel__muted scoring-panel__complete-round-hint">
-                {canCompleteRound
-                  ? t('scoring.buttons.completeRoundHint')
-                  : t('scoring.buttons.completeRoundOwnerOnly')}
-              </p>
-              <div className="scoring-panel__row">
-                {canCompleteRound && holeSubmitMode !== 'complete' ? (
-                  <button
-                    type="button"
-                    className="scoring-panel__button scoring-panel__button--primary"
-                    onClick={() => void onComplete()}
-                    disabled={busy}
-                  >
-                    {t('scoring.buttons.completeRound')}
-                  </button>
-                ) : null}
-                {selected.data.courseSource === 'fresh' &&
-                (selected.data.coursePromotion?.status === 'pending' ||
-                  selected.data.coursePromotion?.status === 'failed') ? (
-                  <button
-                    type="button"
-                    className="scoring-panel__button"
-                    onClick={() => void onRetryPromotion()}
-                    disabled={busy}
-                  >
-                    {t('scoring.buttons.retryPromotion')}
-                  </button>
-                ) : null}
-                {selected.data.ownerId === uid || isAdmin ? (
-                  <button
-                    type="button"
-                    className="scoring-panel__button scoring-panel__button--danger"
-                    onClick={() => void onDeleteRound(roundId, selected.data.ownerId)}
-                    disabled={busy}
-                  >
-                    {t('scoring.buttons.delete')}
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          ) : (
-            <p className="scoring-panel__muted">{t('scoring.rounds.selectRoundToRecordScores')}</p>
-          )}
-        </>
+      {activeTab === 'results' ? (
+        <ScoringPanelResultsTab
+          selected={selected}
+          isRoundCompleted={isRoundCompleted}
+          selectedResultUnits={selectedResultUnits}
+          selectedParticipantTotals={selectedParticipantTotals}
+          selectedParticipantNames={selectedParticipantNames}
+          selectedParticipantScores={selectedParticipantScores}
+          selectedHoleCount={selectedHoleCount}
+          selectedHoleMetadataByNumber={selectedHoleMetadataByNumber}
+          isScrambleScoring={isScrambleScoring}
+          selectedScrambleTeams={selectedScrambleTeams}
+        />
       ) : null}
 
       {activeTab === 'participants' ? (
-        <div className="scoring-panel__section">
-          <span className="scoring-panel__label">{t('scoring.sections.roundParticipants')}</span>
-          {!selected ? (
+        !selected ? (
+          <div className="scoring-panel__section">
+            <span className="scoring-panel__label">{t('scoring.sections.roundParticipants')}</span>
             <p className="scoring-panel__muted">{t('scoring.participants.selectRoundFirst')}</p>
-          ) : (
-            <>
-              <ul className="scoring-panel__list">
-                {selected.data.participantIds.map((participantId) => {
-                  const totals = selectedParticipantTotals[participantId] ?? {
-                    totalStrokes: 0,
-                    totalPar: 0,
-                    totalDelta: 0,
-                    scoredHoles: 0,
-                  }
-                  const isAnonymous = isAnonymousParticipantId(participantId)
-                  const canRosterEditRow = canManageRoundRoster && participantId !== selected.data.ownerId
-                  const replacePanelOpen = rosterReplaceFromId === participantId
-                  return (
-                    <li
-                      key={participantId}
-                      className={`scoring-panel__list-item${replacePanelOpen ? ' scoring-panel__list-item--stacked' : ''}`}
-                    >
-                      <div className="scoring-panel__list-item-main">
-                        <div>
-                          <strong>{selectedParticipantNames[participantId] ?? participantId}</strong>
-                          <p className="scoring-panel__muted">
-                            {isAnonymous ? t('scoring.labels.anonymousParticipant') : participantId}
-                          </p>
-                        </div>
-                        <p className="scoring-panel__muted">
-                          {t('scoring.participants.playerSummary', {
-                            totalStrokes: totals.totalStrokes,
-                            totalPar: totals.totalPar,
-                            totalDelta: formatDelta(totals.totalDelta),
-                            scoredHoles: totals.scoredHoles,
-                          })}
-                        </p>
-                        {canRosterEditRow ? (
-                          <div className="scoring-panel__list-item-actions">
-                            <button
-                              type="button"
-                              className="scoring-panel__button scoring-panel__button--inline"
-                              disabled={busy}
-                              onClick={() => {
-                                setRosterReplaceFromId(participantId)
-                                setRosterReplaceQuery('')
-                                setRosterReplaceTargetUid(null)
-                              }}
-                            >
-                              {t('scoring.buttons.replaceParticipant')}
-                            </button>
-                            <button
-                              type="button"
-                              className="scoring-panel__button scoring-panel__button--inline"
-                              disabled={busy}
-                              onClick={() => void onRemoveRoundParticipant(participantId)}
-                            >
-                              {t('scoring.buttons.removeParticipant')}
-                            </button>
-                          </div>
-                        ) : null}
-                      </div>
-                      {replacePanelOpen ? (
-                        <div
-                          className="scoring-panel__list-item-replace"
-                          role="region"
-                          aria-label={t('scoring.aria.replaceParticipantPanel')}
-                        >
-                          <p className="scoring-panel__muted">{t('scoring.participants.replaceIntro')}</p>
-                          <div className="scoring-panel__field scoring-panel__field--grow">
-                            <label className="scoring-panel__label" htmlFor="roster-replace-search">
-                              {t('scoring.participants.replaceSearchLabel')}
-                            </label>
-                            <input
-                              id="roster-replace-search"
-                              className="scoring-panel__input"
-                              value={rosterReplaceQuery}
-                              onChange={(event) => setRosterReplaceQuery(event.target.value)}
-                              placeholder={t('scoring.participants.replaceSearchPlaceholder')}
-                              autoComplete="off"
-                            />
-                            <div
-                              className="scoring-panel__participant-list"
-                              role="radiogroup"
-                              aria-label={t('scoring.aria.replaceParticipantChoices')}
-                            >
-                              {rosterReplaceCandidateEntries.map((entry) => (
-                                <label key={entry.uid} className="scoring-panel__participant-option">
-                                  <input
-                                    type="radio"
-                                    name="roster-replace-target"
-                                    value={entry.uid}
-                                    checked={rosterReplaceTargetUid === entry.uid}
-                                    disabled={busy}
-                                    onChange={() => setRosterReplaceTargetUid(entry.uid)}
-                                  />
-                                  <span>{participantDisplayName(entry)}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="scoring-panel__row scoring-panel__row--compact">
-                            <button
-                              type="button"
-                              className="scoring-panel__button scoring-panel__button--primary"
-                              disabled={busy || !rosterReplaceTargetUid}
-                              onClick={() => void onReplaceRoundParticipant()}
-                            >
-                              {t('scoring.buttons.confirmReplace')}
-                            </button>
-                            <button
-                              type="button"
-                              className="scoring-panel__button"
-                              disabled={busy}
-                              onClick={() => {
-                                setRosterReplaceFromId(null)
-                                setRosterReplaceQuery('')
-                                setRosterReplaceTargetUid(null)
-                              }}
-                            >
-                              {t('scoring.buttons.cancelReplace')}
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
-                    </li>
-                  )
-                })}
-              </ul>
-              {selected.data.teams && selected.data.teams.length > 0 ? (
-                <div className="scoring-panel__field">
-                  <span className="scoring-panel__label">{t('scoring.participants.teams')}</span>
-                  <ul className="scoring-panel__list">
-                    {selected.data.teams.map((team) => (
-                      <li key={team.id} className="scoring-panel__list-item">
-                        {t('scoring.participants.teamLine', {
-                          teamName: team.name,
-                          members: team.participantIds
-                            .map((participantId) => selectedParticipantNames[participantId] ?? participantId)
-                            .join(', '),
-                        })}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-              <p className="scoring-panel__muted">
-                {t('scoring.participants.grandTotal', {
-                  totalStrokes: selectedGrandTotals.totalStrokes,
-                  totalPar: selectedGrandTotals.totalPar,
-                  totalDelta: formatDelta(selectedGrandTotals.totalDelta),
-                  count: selectedGrandTotals.participantCount,
-                  participantCount: selectedGrandTotals.participantCount,
-                })}
-              </p>
-              {canManageRoundRoster ? (
-                <div className="scoring-panel__scorecard-participants">
-                  <div className="scoring-panel__field scoring-panel__field--grow">
-                    <label className="scoring-panel__label" htmlFor="invite-search">
-                      {t('scoring.participants.addParticipants')}
-                    </label>
-                    <input
-                      id="invite-search"
-                      className="scoring-panel__input"
-                      value={inviteParticipantQuery}
-                      onChange={(event) => setInviteParticipantQuery(event.target.value)}
-                      placeholder={t('scoring.participants.searchUsersPlaceholder')}
-                      autoComplete="off"
-                    />
-                    <div className="scoring-panel__participant-list" role="group" aria-label={t('scoring.aria.inviteParticipants')}>
-                      {inviteCandidateEntries.map((entry) => {
-                        const checked = inviteSelections.includes(entry.uid)
-                        return (
-                          <label key={entry.uid} className="scoring-panel__participant-option">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              disabled={busy}
-                              onChange={() =>
-                                setInviteSelections((current) =>
-                                  current.includes(entry.uid)
-                                    ? current.filter((value) => value !== entry.uid)
-                                    : [...current, entry.uid],
-                                )
-                              }
-                            />
-                            <span>
-                              {participantDisplayName(entry)}
-                            </span>
-                          </label>
-                        )
-                      })}
-                    </div>
-                    <div className="scoring-panel__row scoring-panel__row--compact">
-                      <div className="scoring-panel__field scoring-panel__field--grow scoring-panel__field--compact field">
-                        <label className="scoring-panel__label field__label" htmlFor="invite-anonymous-name">
-                          {t('scoring.labels.playerNameOptional')}
-                        </label>
-                        <input
-                          id="invite-anonymous-name"
-                          ref={inviteAnonymousNameInputRef}
-                          className={`scoring-panel__input field__control${
-                            inviteAnonymousNameError ? ' field__control--invalid' : ''
-                          }`}
-                          value={inviteAnonymousName}
-                          onChange={(event) => {
-                            event.currentTarget.setCustomValidity('')
-                            setInviteAnonymousName(event.target.value)
-                            if (inviteAnonymousNameError && event.currentTarget.validity.valid) {
-                              setInviteAnonymousNameError(null)
-                            }
-                          }}
-                          onInvalid={(event) => {
-                            event.preventDefault()
-                            setInviteAnonymousNameError(resolveAnonymousNameError(event.currentTarget))
-                          }}
-                          pattern={`(?:${NON_WHITESPACE_PATTERN})?`}
-                          maxLength={ANONYMOUS_NAME_MAX_LENGTH}
-                          placeholder={t('scoring.placeholders.playerName')}
-                          autoComplete="off"
-                          aria-invalid={inviteAnonymousNameError ? 'true' : 'false'}
-                          aria-describedby={inviteAnonymousNameError ? 'invite-anonymous-name-error' : undefined}
-                        />
-                        {inviteAnonymousNameError ? (
-                          <p id="invite-anonymous-name-error" className="field__error" role="alert">
-                            {inviteAnonymousNameError}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="scoring-panel__button scoring-panel__button--primary scoring-panel__button--participant-submit"
-                    onClick={() => void onAddParticipant()}
-                    disabled={
-                      busy ||
-                      (inviteSelections.length === 0 &&
-                        normalizeAnonymousParticipantName(inviteAnonymousName).length === 0)
-                    }
-                  >
-                    {t('scoring.buttons.addPlayer')}
-                  </button>
-                </div>
-              ) : null}
-            </>
-          )}
-        </div>
+          </div>
+        ) : (
+          <ScoringPanelParticipantsTab
+            selected={selected}
+            selectedParticipantTotals={selectedParticipantTotals}
+            selectedParticipantNames={selectedParticipantNames}
+            selectedGrandTotals={selectedGrandTotals}
+            canManageRoundRoster={canManageRoundRoster}
+            busy={busy}
+            rosterReplaceFromId={rosterReplaceFromId}
+            setRosterReplaceFromId={setRosterReplaceFromId}
+            rosterReplaceQuery={rosterReplaceQuery}
+            setRosterReplaceQuery={setRosterReplaceQuery}
+            rosterReplaceTargetUid={rosterReplaceTargetUid}
+            setRosterReplaceTargetUid={setRosterReplaceTargetUid}
+            rosterReplaceCandidateEntries={rosterReplaceCandidateEntries}
+            onRemoveRoundParticipant={onRemoveRoundParticipant}
+            onReplaceRoundParticipant={onReplaceRoundParticipant}
+            inviteParticipantQuery={inviteParticipantQuery}
+            setInviteParticipantQuery={setInviteParticipantQuery}
+            inviteSelections={inviteSelections}
+            setInviteSelections={setInviteSelections}
+            inviteCandidateEntries={inviteCandidateEntries}
+            inviteAnonymousName={inviteAnonymousName}
+            setInviteAnonymousName={setInviteAnonymousName}
+            inviteAnonymousNameError={inviteAnonymousNameError}
+            setInviteAnonymousNameError={setInviteAnonymousNameError}
+            inviteAnonymousNameInputRef={inviteAnonymousNameInputRef}
+            resolveAnonymousNameError={resolveAnonymousNameError}
+            onAddParticipant={onAddParticipant}
+          />
+        )
       ) : null}
     </section>
   )
