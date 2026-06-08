@@ -2,10 +2,12 @@ import { updateProfile, type User } from 'firebase/auth'
 import {
   arrayRemove,
   arrayUnion,
+  collection,
   doc,
   getDoc,
   getDocFromServer,
   onSnapshot,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -13,6 +15,11 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@core/firebase/firestore'
+import {
+  normalizeProfileScrambleTeamPresets,
+  type AggregatedScrambleTeamPreset,
+  type ProfileScrambleTeamPreset,
+} from '@core/domain/profileScrambleTeams'
 import {
   DISPLAY_NAME_MAX_LENGTH,
   normalizeDisplayName,
@@ -29,6 +36,8 @@ export type UserProfileDoc = {
   displayName: string
   photoUrl: string | null
   favoriteCourseIds?: string[]
+  /** Saved scramble team groupings reused when starting rounds. */
+  scrambleTeamPresets?: ProfileScrambleTeamPreset[]
   /** Set by trusted backend tooling; never client-assigned. */
   admin?: boolean
   createdAt: Timestamp
@@ -144,6 +153,60 @@ export function readFavoriteCourseIds(profile: unknown): string[] {
   if (!profile || typeof profile !== 'object') return []
   const candidate = profile as { favoriteCourseIds?: unknown }
   return normalizeFavoriteCourseIds(candidate.favoriteCourseIds)
+}
+
+export function readScrambleTeamPresets(profile: unknown): ProfileScrambleTeamPreset[] {
+  if (!profile || typeof profile !== 'object') return []
+  const candidate = profile as { scrambleTeamPresets?: unknown }
+  if (!Array.isArray(candidate.scrambleTeamPresets)) return []
+  return normalizeProfileScrambleTeamPresets(
+    candidate.scrambleTeamPresets as ProfileScrambleTeamPreset[],
+  )
+}
+
+export function subscribeAggregatedScrambleTeamPresets(
+  onNext: (entries: AggregatedScrambleTeamPreset[]) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
+  const q = query(collection(db, USERS))
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const entries: AggregatedScrambleTeamPreset[] = []
+      for (const docSnap of snapshot.docs) {
+        const ownerUid = docSnap.id
+        for (const preset of readScrambleTeamPresets(docSnap.data() ?? null)) {
+          entries.push({ ownerUid, preset })
+        }
+      }
+      onNext(entries)
+    },
+    (error) => onError?.(error as Error),
+  )
+}
+
+export function subscribeScrambleTeamPresets(
+  uid: string,
+  onNext: (presets: ProfileScrambleTeamPreset[]) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
+  const ref = doc(db, USERS, uid)
+  return onSnapshot(
+    ref,
+    (snapshot) => {
+      onNext(readScrambleTeamPresets(snapshot.data() ?? null))
+    },
+    (error) => onError?.(error as Error),
+  )
+}
+
+export async function saveScrambleTeamPresets(params: {
+  uid: string
+  presets: ProfileScrambleTeamPreset[]
+}): Promise<void> {
+  const ref = doc(db, USERS, params.uid)
+  const scrambleTeamPresets = normalizeProfileScrambleTeamPresets(params.presets)
+  await updateDoc(ref, { scrambleTeamPresets })
 }
 
 export function subscribeFavoriteCourseIds(

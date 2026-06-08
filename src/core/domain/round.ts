@@ -15,6 +15,8 @@ export type HoleScoreEntry = {
 /** Per-participant scored holes keyed by participant uid then hole number string. */
 export type ParticipantHoleScores = Record<string, Record<string, HoleScoreEntry>>
 
+export type RoundScoringMode = 'individual' | 'scramble'
+
 export type RoundCourseSource = 'saved' | 'fresh'
 
 export type RoundCourseDraftHole = {
@@ -50,6 +52,8 @@ export type RoundDoc = {
   participantIds: string[]
   /** Metadata for anonymous participants whose ids are also in `participantIds`. */
   anonymousParticipants?: RoundAnonymousParticipant[]
+  /** Individual stroke play vs one score per team per hole. Defaults to individual when omitted. */
+  scoringMode?: RoundScoringMode
   /** Optional scramble teams; each participant may belong to at most one team. */
   teams?: RoundTeam[]
   courseId: string
