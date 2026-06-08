@@ -6,7 +6,10 @@ import { subscribeRound, type RoundListItem } from '@core/domain/rounds'
 import { ScoringPanel } from '@modules/scoring/components/ScoringPanel'
 import { ReadOnlyScorecard } from '@modules/scoring/components/ReadOnlyScorecard'
 import { resolveRoundAccess } from '@modules/scoring/domain/roundAccess'
-import { resolveScorecardBackPath } from '@modules/scoring/domain/resolveScorecardBackPath'
+import {
+  resolveScorecardBackPath,
+  resolveScorecardBackPlayerName,
+} from '@modules/scoring/domain/resolveScorecardBackPath'
 
 type Props = {
   user: User
@@ -23,6 +26,7 @@ export function ScoringView({ user }: Props) {
   const navigate = useNavigate()
   const location = useLocation()
   const backPath = resolveScorecardBackPath(location.state)
+  const backPlayerName = resolveScorecardBackPlayerName(location.state)
   const [load, setLoad] = useState<LoadState>({ status: 'loading' })
 
   useEffect(() => {
@@ -44,9 +48,11 @@ export function ScoringView({ user }: Props) {
   return (
     <div className="app-shell__flow">
       <NavLink to={backPath} className="app-shell__link dashboard-home__back">
-        {backPath.startsWith('/players/')
-          ? t('rounds.scorecard.backToPlayer')
-          : t('rounds.scorecard.backHome')}
+        {backPlayerName && backPath.startsWith('/players/')
+          ? t('rounds.scorecard.backToPlayerNamed', { name: backPlayerName })
+          : backPath.startsWith('/players/')
+            ? t('rounds.scorecard.backToPlayer')
+            : t('rounds.scorecard.backHome')}
       </NavLink>
       {load.status === 'loading' ? null : load.status === 'missing' || access === 'denied' ? (
         <p className="scoring-panel__error" role="alert">

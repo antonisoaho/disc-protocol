@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveScorecardBackPath } from '@modules/scoring/domain/resolveScorecardBackPath'
+import {
+  resolveScorecardBackPath,
+  resolveScorecardBackPlayerName,
+} from '@modules/scoring/domain/resolveScorecardBackPath'
 
 describe('resolveScorecardBackPath', () => {
   it('returns "/" when state is undefined', () => {
@@ -33,5 +36,16 @@ describe('resolveScorecardBackPath', () => {
 
   it('returns "/" for empty string', () => {
     expect(resolveScorecardBackPath({ backTo: '' })).toBe('/')
+  })
+})
+
+describe('resolveScorecardBackPlayerName', () => {
+  it('returns null when state is missing or name is empty', () => {
+    expect(resolveScorecardBackPlayerName(undefined)).toBeNull()
+    expect(resolveScorecardBackPlayerName({ backToPlayerName: '   ' })).toBeNull()
+  })
+
+  it('returns trimmed player name when provided', () => {
+    expect(resolveScorecardBackPlayerName({ backToPlayerName: '  Anna  ' })).toBe('Anna')
   })
 })

@@ -1,4 +1,6 @@
 import type { ParticipantHoleScores } from '@core/domain/scorecardTable'
+import { resolveScrambleScoringUnits } from '@core/domain/scrambleScoring'
+import type { RoundTeam } from '@core/domain/roundTeams'
 
 /** Participants with the minimum strokes on `hole` among `candidates` who have a recorded score. */
 function lowestStrokesOnHole(
@@ -53,4 +55,51 @@ export function resolveHonorThrowerUid(
 
   const order = new Map(participantIds.map((id, idx) => [id, idx]))
   return [...candidates].sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0))[0] ?? null
+}
+
+/** Display label for who throws first (player name or scramble team name). */
+export function resolveHonorDisplayLabel(params: {
+  participantIds: readonly string[]
+  scores: ParticipantHoleScores
+  activeHoleNumber: number
+  participantNames: Record<string, string>
+  isScramble: boolean
+  teams?: RoundTeam[] | null | undefined
+}): string | null {
+  if (params.activeHoleNumber <= 1) {
+    return null
+  }
+
+  if (!params.isScramble) {
+    const honorUid = resolveHonorThrowerUid(
+      params.participantIds,
+      params.scores,
+      params.activeHoleNumber,
+    )
+    if (!honorUid) {
+      return null
+    }
+    return params.participantNames[honorUid] ?? honorUid
+  }
+
+  const units = resolveScrambleScoringUnits({
+    participantIds: [...params.participantIds],
+    teams: params.teams,
+    participantNames: params.participantNames,
+  })
+  if (units.length === 0) {
+    return null
+  }
+
+  const competitors = units.map((unit) => ({
+    repId: unit.kind === 'team' ? unit.participantIds[0]! : unit.participantId,
+    label: unit.name,
+  }))
+  const repIds = competitors.map((competitor) => competitor.repId)
+  const honorRepId = resolveHonorThrowerUid(repIds, params.scores, params.activeHoleNumber)
+  if (!honorRepId) {
+    return null
+  }
+
+  return competitors.find((competitor) => competitor.repId === honorRepId)?.label ?? honorRepId
 }
