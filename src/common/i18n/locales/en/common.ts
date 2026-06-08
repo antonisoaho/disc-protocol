@@ -487,7 +487,7 @@ export const commonEn = {
         },
         courseMode: {
           saved: 'Saved course',
-          quick: 'Quick round',
+          quick: 'New course',
         },
         courseSearchPlaceholder: 'Search courses by name',
         courseListAria: 'Choose a saved course',

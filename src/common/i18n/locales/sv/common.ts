@@ -488,7 +488,7 @@ export const commonSv = {
         },
         courseMode: {
           saved: 'Sparad bana',
-          quick: 'Snabbrunda',
+          quick: 'Ny bana',
         },
         courseSearchPlaceholder: 'Sök banor efter namn',
         courseListAria: 'Välj en sparad bana',
