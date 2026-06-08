@@ -85,11 +85,6 @@ describe('StartRoundPlayersStep', () => {
           onAnonymousNameInvalid={() => {}}
           onAddAnonymousParticipant={() => {}}
           participantDisplayName={(entry) => entry.displayName}
-          teams={[]}
-          onAddTeam={() => {}}
-          onRemoveTeam={() => {}}
-          onTeamNameChange={() => {}}
-          onToggleTeamMember={() => {}}
           busy={false}
         />
       </I18nextProvider>,
@@ -129,7 +124,7 @@ describe('StartRoundReviewStep', () => {
 })
 
 describe('StartRoundPlayersStep teams', () => {
-  it('shows teams section when two or more players are in the roster', () => {
+  it('shows profile teams hint when two or more players are in the roster', () => {
     const html = renderToString(
       <I18nextProvider i18n={i18n}>
         <StartRoundPlayersStep
@@ -150,17 +145,11 @@ describe('StartRoundPlayersStep teams', () => {
           onAnonymousNameInvalid={() => {}}
           onAddAnonymousParticipant={() => {}}
           participantDisplayName={(entry) => entry.displayName}
-          teams={[]}
-          onAddTeam={() => {}}
-          onRemoveTeam={() => {}}
-          onTeamNameChange={() => {}}
-          onToggleTeamMember={() => {}}
           busy={false}
         />
       </I18nextProvider>,
     )
 
-    expect(html).toContain('Teams')
-    expect(html).toContain('Add team')
+    expect(html).toContain('Set up scramble teams under Profile')
   })
 })
