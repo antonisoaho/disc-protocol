@@ -127,7 +127,7 @@ textarea {
   border: 1px solid var(--border);
   border-radius: $radius-sm;
   font: inherit;
-  font-size: 0.875rem;
+  font-size: 1.125rem;
   color: var(--text);
   background: var(--body-bg);
 
@@ -148,11 +148,11 @@ textarea {
   }
 }
 
-// iOS Safari auto-zooms focused inputs when font-size is below 16px. The rule above wins on
-// specificity over block styles, so scoring inputs need an explicit >=16px override here.
+// iOS Safari auto-zooms focused inputs when font-size is below 16px; 18px avoids edge cases
+// where 16px still zooms. Block-level overrides below must stay at or above this size.
 .scoring-panel input.scoring-panel__player-score-input,
 .scoring-panel__hole-form input.scoring-panel__input {
-  font-size: 1rem;
+  font-size: 1.125rem;
 }
 
 .scoring-panel input.scoring-panel__hole-nav-input {
