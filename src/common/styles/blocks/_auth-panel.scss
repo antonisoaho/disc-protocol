@@ -47,7 +47,7 @@
   width: 100%;
   margin: 0;
   display: block;
-  font-size: 1rem;
+  font-size: 1.125rem;
   border-radius: calc(#{$radius-md} + #{$space-1});
   background: color-mix(in srgb, var(--body-bg) 84%, var(--surface-bg));
 }
