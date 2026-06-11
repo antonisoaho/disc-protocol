@@ -561,7 +561,7 @@ export const commonSv = {
         guestNameLabel: 'Gästnamn',
         guestNamePlaceholder: 'Namn',
         addGuest: 'Lägg till gäst',
-        teamsProfileHint: 'Skapa scramble-lag under Profil. Matchande lag används automatiskt när rundan startar.',
+        teamsProfileHint: 'Skapa scramble-lag under Profil för att återanvända sparade laguppställningar.',
         review: {
           course: 'Bana',
           players: 'Spelare',
