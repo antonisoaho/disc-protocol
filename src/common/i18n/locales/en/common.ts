@@ -560,7 +560,7 @@ export const commonEn = {
         guestNameLabel: 'Guest name',
         guestNamePlaceholder: 'Name',
         addGuest: 'Add guest',
-        teamsProfileHint: 'Set up scramble teams under Profile. Matching teams are applied automatically when the round starts.',
+        teamsProfileHint: 'Set up scramble teams under Profile to reuse saved team lineups.',
         review: {
           course: 'Course',
           players: 'Players',

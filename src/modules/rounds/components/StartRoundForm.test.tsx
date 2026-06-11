@@ -151,5 +151,6 @@ describe('StartRoundPlayersStep teams', () => {
     )
 
     expect(html).toContain('Set up scramble teams under Profile')
+    expect(html).not.toContain('automatically')
   })
 })

@@ -12,10 +12,8 @@ import {
   FreshRoundDraftValidationError,
   normalizeFreshCourseDraft,
 } from '@core/domain/freshRoundCourse'
-import { applyProfileTeamsToRound, type ProfileScrambleTeamPreset } from '@core/domain/profileScrambleTeams'
 import { createRound } from '@core/domain/rounds'
 import { subscribeFollowers, subscribeFollowing } from '@core/users/follows'
-import { subscribeScrambleTeamPresets } from '@core/users/userProfile'
 import { subscribeUserDirectory, type UserDirectoryEntry } from '@core/users/userDirectory'
 import { translateUserError } from '@common/i18n/translateError'
 import { formatDraftIssues } from '@common/helpers/formatDraftIssues'
@@ -83,7 +81,6 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
   const [freshCourseNameError, setFreshCourseNameError] = useState<string | null>(null)
   const [newRoundAnonymousNameError, setNewRoundAnonymousNameError] = useState<string | null>(null)
   const [newRoundAnonymousParticipants, setNewRoundAnonymousParticipants] = useState<AnonymousParticipant[]>([])
-  const [profileTeamPresets, setProfileTeamPresets] = useState<ProfileScrambleTeamPreset[]>([])
   const [directoryEntries, setDirectoryEntries] = useState<UserDirectoryEntry[]>([])
   const [followingIds, setFollowingIds] = useState<string[]>([])
   const [followerIds, setFollowerIds] = useState<string[]>([])
@@ -159,15 +156,6 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
       (edges) => {
         setFollowerIds(Array.from(new Set(edges.map((edge) => edge.followerUid))))
       },
-      () => {},
-    )
-    return () => unsub()
-  }, [uid])
-
-  useEffect(() => {
-    const unsub = subscribeScrambleTeamPresets(
-      uid,
-      (presets) => setProfileTeamPresets(presets),
       () => {},
     )
     return () => unsub()
@@ -281,19 +269,6 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
   }, [directoryByUid, newRoundAnonymousParticipants, newRoundParticipants, ownerDisplayName, uid])
 
   const reviewPlayerNames = useMemo(() => rosterEntries.map((entry) => entry.name), [rosterEntries])
-
-  const appliedRoundTeams = useMemo(() => {
-    const participantIds = Array.from(new Set([uid, ...newRoundParticipants]))
-    return applyProfileTeamsToRound(participantIds, profileTeamPresets)
-  }, [newRoundParticipants, profileTeamPresets, uid])
-
-  const reviewTeamSummaries = useMemo(() => {
-    const nameById = new Map(rosterEntries.map((entry) => [entry.id, entry.name]))
-    return appliedRoundTeams.map((team) => ({
-      name: team.name,
-      memberNames: team.participantIds.map((participantId) => nameById.get(participantId) ?? participantId).join(', '),
-    }))
-  }, [appliedRoundTeams, rosterEntries])
 
   const onAddNewRoundAnonymousParticipant = useCallback(() => {
     const anonymousInput = newRoundAnonymousNameInputRef.current
@@ -420,7 +395,6 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
         (participantId) => participantId.trim().length > 0,
       )
       const anonymousParticipants = mergeAnonymousParticipants(participantIds, newRoundAnonymousParticipants)
-      const teams = applyProfileTeamsToRound(participantIds, profileTeamPresets)
       let id = ''
       if (courseMode === 'saved') {
         if (!selectedSavedCourse) {
@@ -445,7 +419,6 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
           visibility: 'public',
           participantIds,
           anonymousParticipants,
-          teams,
         })
       } else {
         const courseDraft = normalizeFreshCourseDraft({
@@ -463,7 +436,6 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
           visibility: 'public',
           participantIds,
           anonymousParticipants,
-          teams,
         })
       }
       setFreshCourseNameError(null)
@@ -500,7 +472,6 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
     newRoundAnonymousParticipants,
     newRoundParticipants,
     onRoundCreated,
-    profileTeamPresets,
     selectedSavedCourse,
     t,
     uid,
@@ -599,7 +570,7 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
           quickCourseName={freshCourseName}
           holeCount={freshHoleChoice}
           playerNames={reviewPlayerNames}
-          teamSummaries={reviewTeamSummaries}
+          teamSummaries={[]}
         />
       ) : null}
 
