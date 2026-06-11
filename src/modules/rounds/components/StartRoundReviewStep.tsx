@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import type { CourseMode } from '@modules/rounds/domain/startRoundWizard'
+import type { CourseMode, WizardScoringMode } from '@modules/rounds/domain/startRoundWizard'
 
 export type ReviewTeamSummary = {
   name: string
@@ -12,6 +12,7 @@ type Props = {
   quickCourseName: string
   holeCount: number
   playerNames: string[]
+  scoringMode: WizardScoringMode
   teamSummaries: ReviewTeamSummary[]
 }
 
@@ -21,6 +22,7 @@ export function StartRoundReviewStep({
   quickCourseName,
   holeCount,
   playerNames,
+  scoringMode,
   teamSummaries,
 }: Props) {
   const { t } = useTranslation('common')
@@ -44,6 +46,16 @@ export function StartRoundReviewStep({
           <dt className="start-round-wizard__review-label">{t('rounds.new.wizard.review.players')}</dt>
           <dd className="start-round-wizard__review-value">{playerNames.join(', ')}</dd>
         </div>
+        {playerNames.length >= 2 ? (
+          <div className="start-round-wizard__review-item">
+            <dt className="start-round-wizard__review-label">{t('rounds.new.wizard.review.format')}</dt>
+            <dd className="start-round-wizard__review-value">
+              {scoringMode === 'scramble'
+                ? t('rounds.new.wizard.review.formatScramble')
+                : t('rounds.new.wizard.review.formatIndividual')}
+            </dd>
+          </div>
+        ) : null}
         {teamSummaries.length > 0 ? (
           <div className="start-round-wizard__review-item">
             <dt className="start-round-wizard__review-label">{t('rounds.new.wizard.review.teams')}</dt>

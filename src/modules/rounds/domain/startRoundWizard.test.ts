@@ -3,11 +3,13 @@ import {
   addWizardTeam,
   applyAllSavedTeamsToWizard,
   applyOneSavedTeamToWizard,
+  buildParticipantNameById,
   buildReviewTeamSummaries,
   buildSavedTeamPresetSummaries,
   removeWizardParticipantFromTeams,
   resolveInitialCourseMode,
   resolveInitialSavedCourseId,
+  resolveParticipantDisplayName,
   syncWizardTeamsWithRoster,
   toggleWizardTeamMember,
   validateCourseStep,
@@ -106,7 +108,9 @@ describe('wizard team helpers', () => {
     ).toEqual([{ id: 'preset:a', name: 'Eagles', participantIds: ['owner'] }])
   })
 
-  it('builds saved preset and review summaries', () => {
+  it('builds saved preset and review summaries with directory names', () => {
+    const directoryNameById = new Map([...nameById, ['u9', 'Casey']])
+
     expect(
       buildSavedTeamPresetSummaries(
         [
@@ -114,15 +118,32 @@ describe('wizard team helpers', () => {
           { id: 'preset:b', name: 'Birdies', memberUids: ['u9'] },
         ],
         ['owner', 'u1'],
-        nameById,
+        directoryNameById,
+        'Unknown player',
       ),
     ).toEqual([
       { presetId: 'preset:a', teamName: 'Eagles', memberNames: 'Alex, Sam', hasRosterMembers: true },
-      { presetId: 'preset:b', teamName: 'Birdies', memberNames: 'u9', hasRosterMembers: false },
+      { presetId: 'preset:b', teamName: 'Birdies', memberNames: 'Casey', hasRosterMembers: false },
     ])
 
     expect(
-      buildReviewTeamSummaries([{ id: 'preset:a', name: 'Eagles', participantIds: ['owner', 'u1'] }], nameById),
+      buildReviewTeamSummaries(
+        [{ id: 'preset:a', name: 'Eagles', participantIds: ['owner', 'u1'] }],
+        nameById,
+        'Unknown player',
+      ),
     ).toEqual([{ name: 'Eagles', memberNames: 'Alex, Sam' }])
+  })
+
+  it('falls back to unknown label instead of raw ids', () => {
+    expect(resolveParticipantDisplayName('missing', nameById, 'Unknown player')).toBe('Unknown player')
+    expect(
+      buildParticipantNameById({
+        directoryEntries: [{ uid: 'u1', displayName: 'Sam' }],
+        ownerUid: 'owner',
+        ownerDisplayName: 'Alex',
+        anonymousParticipants: [{ id: 'anon:1', displayName: 'Guest' }],
+      }).get('anon:1'),
+    ).toBe('Guest')
   })
 })
