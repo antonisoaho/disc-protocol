@@ -1,6 +1,9 @@
 import type { RefObject } from 'react'
 import { useTranslation } from 'react-i18next'
+import { TeamsEditor, type TeamMemberOption } from '@common/components/TeamsEditor'
+import type { RoundTeam } from '@core/domain/roundTeams'
 import type { UserDirectoryEntry } from '@core/users/userDirectory'
+import type { SavedTeamPresetSummary } from '@modules/rounds/domain/startRoundWizard'
 
 export type RosterEntry = {
   id: string
@@ -23,6 +26,15 @@ type Props = {
   onAnonymousNameInvalid: (input: HTMLInputElement) => void
   onAddAnonymousParticipant: () => void
   participantDisplayName: (entry: UserDirectoryEntry) => string
+  savedTeamPresets: SavedTeamPresetSummary[]
+  onApplyAllSavedTeams: () => void
+  onApplySavedTeam: (presetId: string) => void
+  teamMemberOptions: TeamMemberOption[]
+  wizardTeams: RoundTeam[]
+  onAddTeam: () => void
+  onRemoveTeam: (teamId: string) => void
+  onTeamNameChange: (teamId: string, name: string) => void
+  onToggleTeamMember: (teamId: string, participantId: string) => void
   busy: boolean
 }
 
@@ -44,9 +56,20 @@ export function StartRoundPlayersStep({
   onAnonymousNameInvalid,
   onAddAnonymousParticipant,
   participantDisplayName,
+  savedTeamPresets,
+  onApplyAllSavedTeams,
+  onApplySavedTeam,
+  teamMemberOptions,
+  wizardTeams,
+  onAddTeam,
+  onRemoveTeam,
+  onTeamNameChange,
+  onToggleTeamMember,
   busy,
 }: Props) {
   const { t } = useTranslation('common')
+  const showTeams = rosterEntries.length >= 2
+  const applicableSavedTeams = savedTeamPresets.filter((preset) => preset.hasRosterMembers)
 
   return (
     <div className="scoring-panel__section">
@@ -164,8 +187,65 @@ export function StartRoundPlayersStep({
         </div>
       </details>
 
-      {rosterEntries.length >= 2 ? (
-        <p className="scoring-panel__muted scoring-panel__hint">{t('rounds.new.wizard.teamsProfileHint')}</p>
+      {showTeams && savedTeamPresets.length > 0 ? (
+        <div className="start-round-wizard__saved-teams">
+          <span className="scoring-panel__label">{t('rounds.new.wizard.format.savedTeamsTitle')}</span>
+          <p className="scoring-panel__muted">{t('rounds.new.wizard.format.savedTeamsHint')}</p>
+          <ul
+            className="start-round-wizard__saved-team-list"
+            aria-label={t('rounds.new.wizard.format.savedTeamsAria')}
+          >
+            {savedTeamPresets.map((preset) => (
+              <li key={preset.presetId} className="start-round-wizard__saved-team-item">
+                <span>
+                  {t('rounds.new.wizard.format.savedTeamLine', {
+                    teamName: preset.teamName,
+                    members: preset.memberNames || t('rounds.new.wizard.format.savedTeamNoMembers'),
+                  })}
+                </span>
+                <button
+                  type="button"
+                  className="scoring-panel__button scoring-panel__button--inline"
+                  onClick={() => onApplySavedTeam(preset.presetId)}
+                  disabled={busy || !preset.hasRosterMembers}
+                >
+                  {t('rounds.new.wizard.format.useSavedTeam')}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {applicableSavedTeams.length > 1 ? (
+            <button
+              type="button"
+              className="scoring-panel__button"
+              onClick={onApplyAllSavedTeams}
+              disabled={busy}
+            >
+              {t('rounds.new.wizard.format.applySavedTeams')}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {showTeams ? (
+        <TeamsEditor
+          titleKey="rounds.new.wizard.format.teamsEditorTitle"
+          hintKey="rounds.new.wizard.format.teamsEditorHint"
+          teamNameLabelKey="profile.teams.teamName"
+          membersLabelKey="profile.teams.members"
+          addTeamKey="profile.teams.addTeam"
+          removeTeamKey="profile.teams.removeTeam"
+          defaultTeamNameKey="profile.teams.defaultName"
+          unassignedKey="profile.teams.unassigned"
+          memberOptions={teamMemberOptions}
+          teams={wizardTeams}
+          onAddTeam={onAddTeam}
+          onRemoveTeam={onRemoveTeam}
+          onTeamNameChange={onTeamNameChange}
+          onToggleTeamMember={onToggleTeamMember}
+          busy={busy}
+          variant="compact"
+        />
       ) : null}
     </div>
   )

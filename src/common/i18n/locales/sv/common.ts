@@ -542,6 +542,7 @@ export const commonSv = {
           savedTeamLine: '{{teamName}}: {{members}}',
           savedTeamNoMembers: 'Inga medlemmar ännu',
           applySavedTeams: 'Använd sparade lag',
+          useSavedTeam: 'Använd lag',
           teamsEditorTitle: 'Lag i den här rundan',
           teamsEditorHint: 'Välj vem som spelar tillsammans. Alla i startlistan kan vara med i ett lag.',
         },
@@ -561,7 +562,6 @@ export const commonSv = {
         guestNameLabel: 'Gästnamn',
         guestNamePlaceholder: 'Namn',
         addGuest: 'Lägg till gäst',
-        teamsProfileHint: 'Skapa scramble-lag under Profil för att återanvända sparade laguppställningar.',
         review: {
           course: 'Bana',
           players: 'Spelare',

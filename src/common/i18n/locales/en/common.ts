@@ -541,6 +541,7 @@ export const commonEn = {
           savedTeamLine: '{{teamName}}: {{members}}',
           savedTeamNoMembers: 'No members yet',
           applySavedTeams: 'Apply saved teams',
+          useSavedTeam: 'Use team',
           teamsEditorTitle: 'Teams for this round',
           teamsEditorHint: 'Choose who plays together. Anyone in the roster can be on a team.',
         },
@@ -560,7 +561,6 @@ export const commonEn = {
         guestNameLabel: 'Guest name',
         guestNamePlaceholder: 'Name',
         addGuest: 'Add guest',
-        teamsProfileHint: 'Set up scramble teams under Profile to reuse saved team lineups.',
         review: {
           course: 'Course',
           players: 'Players',
