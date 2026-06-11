@@ -236,6 +236,13 @@
   padding-left: $space-4;
 }
 
+.start-round-wizard__teams-disclosure-body {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  padding: $space-3;
+}
+
 .start-round-wizard__saved-teams {
   display: flex;
   flex-direction: column;

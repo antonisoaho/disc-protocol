@@ -15,6 +15,8 @@ export type WizardStep = 'course' | 'players' | 'review'
 
 export type CourseMode = 'saved' | 'quick'
 
+export type WizardScoringMode = 'individual' | 'scramble'
+
 export type SavedTeamPresetSummary = {
   presetId: string
   teamName: string
@@ -112,18 +114,48 @@ export function removeWizardParticipantFromTeams(teams: RoundTeam[], participant
   return removeParticipantFromTeams(teams, participantId)
 }
 
+export function resolveParticipantDisplayName(
+  participantId: string,
+  nameById: ReadonlyMap<string, string>,
+  unknownLabel: string,
+): string {
+  const resolved = nameById.get(participantId)?.trim()
+  return resolved && resolved.length > 0 ? resolved : unknownLabel
+}
+
+export function buildParticipantNameById<DirectoryEntry extends { uid: string; displayName: string }>(params: {
+  directoryEntries: ReadonlyArray<DirectoryEntry>
+  ownerUid: string
+  ownerDisplayName: string
+  anonymousParticipants: ReadonlyArray<{ id: string; displayName: string }>
+  resolveDirectoryName?: (entry: DirectoryEntry) => string
+}): Map<string, string> {
+  const resolveName =
+    params.resolveDirectoryName ??
+    ((entry: DirectoryEntry) => (entry.displayName.trim().length > 0 ? entry.displayName : entry.uid))
+  const map = new Map<string, string>()
+  for (const entry of params.directoryEntries) {
+    map.set(entry.uid, resolveName(entry))
+  }
+  map.set(params.ownerUid, params.ownerDisplayName)
+  for (const participant of params.anonymousParticipants) {
+    map.set(participant.id, participant.displayName)
+  }
+  return map
+}
+
 export function buildSavedTeamPresetSummaries(
   presets: ProfileScrambleTeamPreset[],
   participantIds: string[],
   nameById: ReadonlyMap<string, string>,
+  unknownLabel: string,
 ): SavedTeamPresetSummary[] {
   const roster = new Set(participantIds)
   return presets.map((preset) => {
     const rosterMemberIds = preset.memberUids.filter((memberUid) => roster.has(memberUid))
-    const memberNames =
-      rosterMemberIds.length > 0
-        ? rosterMemberIds.map((memberUid) => nameById.get(memberUid) ?? memberUid).join(', ')
-        : preset.memberUids.map((memberUid) => nameById.get(memberUid) ?? memberUid).join(', ')
+    const memberNames = preset.memberUids
+      .map((memberUid) => resolveParticipantDisplayName(memberUid, nameById, unknownLabel))
+      .join(', ')
     return {
       presetId: preset.id,
       teamName: preset.name,
@@ -136,9 +168,12 @@ export function buildSavedTeamPresetSummaries(
 export function buildReviewTeamSummaries(
   teams: RoundTeam[],
   nameById: ReadonlyMap<string, string>,
+  unknownLabel: string,
 ): ReviewTeamSummary[] {
   return teams.map((team) => ({
     name: team.name,
-    memberNames: team.participantIds.map((participantId) => nameById.get(participantId) ?? participantId).join(', '),
+    memberNames: team.participantIds
+      .map((participantId) => resolveParticipantDisplayName(participantId, nameById, unknownLabel))
+      .join(', '),
   }))
 }

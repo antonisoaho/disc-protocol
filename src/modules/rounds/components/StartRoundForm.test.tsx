@@ -70,6 +70,8 @@ const playersStepDefaults = {
   savedTeamPresets: [],
   onApplyAllSavedTeams: () => {},
   onApplySavedTeam: () => {},
+  scoringMode: 'individual' as const,
+  onScoringModeChange: () => {},
   teamMemberOptions: [],
   wizardTeams: [],
   onAddTeam: () => {},
@@ -124,6 +126,7 @@ describe('StartRoundReviewStep', () => {
           quickCourseName=""
           holeCount={18}
           playerNames={['Alex', 'Sam']}
+          scoringMode="scramble"
           teamSummaries={[{ name: 'Eagles', memberNames: 'Alex, Sam' }]}
         />
       </I18nextProvider>,
@@ -137,52 +140,69 @@ describe('StartRoundReviewStep', () => {
 })
 
 describe('StartRoundPlayersStep teams', () => {
-  it('shows team editor and saved presets when two or more players are in the roster', () => {
+  const twoPlayerRosterProps = {
+    rosterEntries: [
+      { id: 'owner', name: 'Alex', kind: 'you' as const },
+      { id: 'u2', name: 'Sam', kind: 'registered' as const },
+    ],
+    onRemoveRosterEntry: () => {},
+    availableParticipants: [],
+    selectedParticipantIds: ['owner', 'u2'],
+    onToggleParticipant: () => {},
+    participantQuery: '',
+    onParticipantQueryChange: () => {},
+    anonymousName: '',
+    onAnonymousNameChange: () => {},
+    anonymousNameError: null,
+    anonymousNameInputRef: { current: null },
+    onAnonymousNameInvalid: () => {},
+    onAddAnonymousParticipant: () => {},
+    participantDisplayName: (entry: { displayName: string }) => entry.displayName,
+    busy: false,
+    savedTeamPresets: [
+      {
+        presetId: 'preset:a',
+        teamName: 'Eagles',
+        memberNames: 'Alex, Sam',
+        hasRosterMembers: true,
+      },
+    ],
+    onApplyAllSavedTeams: () => {},
+    onApplySavedTeam: () => {},
+    onScoringModeChange: () => {},
+    teamMemberOptions: [
+      { id: 'owner', name: 'Alex' },
+      { id: 'u2', name: 'Sam' },
+    ],
+    wizardTeams: [],
+    onAddTeam: () => {},
+    onRemoveTeam: () => {},
+    onTeamNameChange: () => {},
+    onToggleTeamMember: () => {},
+  }
+
+  it('shows format choice but hides teams until scramble is selected', () => {
     const html = renderToString(
       <I18nextProvider i18n={i18n}>
-        <StartRoundPlayersStep
-          rosterEntries={[
-            { id: 'owner', name: 'Alex', kind: 'you' },
-            { id: 'u2', name: 'Sam', kind: 'registered' },
-          ]}
-          onRemoveRosterEntry={() => {}}
-          availableParticipants={[]}
-          selectedParticipantIds={['owner', 'u2']}
-          onToggleParticipant={() => {}}
-          participantQuery=""
-          onParticipantQueryChange={() => {}}
-          anonymousName=""
-          onAnonymousNameChange={() => {}}
-          anonymousNameError={null}
-          anonymousNameInputRef={{ current: null }}
-          onAnonymousNameInvalid={() => {}}
-          onAddAnonymousParticipant={() => {}}
-          participantDisplayName={(entry) => entry.displayName}
-          busy={false}
-          savedTeamPresets={[
-            {
-              presetId: 'preset:a',
-              teamName: 'Eagles',
-              memberNames: 'Alex, Sam',
-              hasRosterMembers: true,
-            },
-          ]}
-          onApplyAllSavedTeams={() => {}}
-          onApplySavedTeam={() => {}}
-          teamMemberOptions={[
-            { id: 'owner', name: 'Alex' },
-            { id: 'u2', name: 'Sam' },
-          ]}
-          wizardTeams={[]}
-          onAddTeam={() => {}}
-          onRemoveTeam={() => {}}
-          onTeamNameChange={() => {}}
-          onToggleTeamMember={() => {}}
-        />
+        <StartRoundPlayersStep {...twoPlayerRosterProps} scoringMode="individual" />
       </I18nextProvider>,
     )
 
-    expect(html).toContain('Teams for this round')
+    expect(html).toContain('How are you scoring?')
+    expect(html).toContain('Regular round')
+    expect(html).toContain('Scramble')
+    expect(html).not.toContain('Teams for this round')
+  })
+
+  it('shows collapsible team setup when scramble is selected', () => {
+    const html = renderToString(
+      <I18nextProvider i18n={i18n}>
+        <StartRoundPlayersStep {...twoPlayerRosterProps} scoringMode="scramble" />
+      </I18nextProvider>,
+    )
+
+    expect(html).toContain('<details')
+    expect(html).toContain('Set up teams')
     expect(html).toContain('Your saved teams')
     expect(html).toContain('Eagles: Alex, Sam')
     expect(html).toContain('Use team')
