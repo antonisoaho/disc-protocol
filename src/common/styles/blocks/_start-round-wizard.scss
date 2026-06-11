@@ -235,3 +235,62 @@
   margin: 0;
   padding-left: $space-4;
 }
+
+.start-round-wizard__saved-teams {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+}
+
+.start-round-wizard__saved-team-list {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.start-round-wizard__saved-team-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  border: 1px solid var(--border);
+  border-radius: $radius-sm;
+  background: var(--body-bg);
+}
+
+.start-round-wizard__team-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.start-round-wizard__team-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  border: 1px solid var(--border);
+  border-radius: $radius-sm;
+}
+
+.start-round-wizard__team-summary-text {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+}
+
+.start-round-wizard__team-summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-2;
+}

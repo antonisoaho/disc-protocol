@@ -66,6 +66,18 @@ describe('StartRoundCourseStep', () => {
   })
 })
 
+const playersStepDefaults = {
+  savedTeamPresets: [],
+  onApplyAllSavedTeams: () => {},
+  onApplySavedTeam: () => {},
+  teamMemberOptions: [],
+  wizardTeams: [],
+  onAddTeam: () => {},
+  onRemoveTeam: () => {},
+  onTeamNameChange: () => {},
+  onToggleTeamMember: () => {},
+}
+
 describe('StartRoundPlayersStep', () => {
   it('shows you in the roster and keeps guest add controls inside a disclosure', () => {
     const html = renderToString(
@@ -86,6 +98,7 @@ describe('StartRoundPlayersStep', () => {
           onAddAnonymousParticipant={() => {}}
           participantDisplayName={(entry) => entry.displayName}
           busy={false}
+          {...playersStepDefaults}
         />
       </I18nextProvider>,
     )
@@ -124,7 +137,7 @@ describe('StartRoundReviewStep', () => {
 })
 
 describe('StartRoundPlayersStep teams', () => {
-  it('shows profile teams hint when two or more players are in the roster', () => {
+  it('shows team editor and saved presets when two or more players are in the roster', () => {
     const html = renderToString(
       <I18nextProvider i18n={i18n}>
         <StartRoundPlayersStep
@@ -146,11 +159,33 @@ describe('StartRoundPlayersStep teams', () => {
           onAddAnonymousParticipant={() => {}}
           participantDisplayName={(entry) => entry.displayName}
           busy={false}
+          savedTeamPresets={[
+            {
+              presetId: 'preset:a',
+              teamName: 'Eagles',
+              memberNames: 'Alex, Sam',
+              hasRosterMembers: true,
+            },
+          ]}
+          onApplyAllSavedTeams={() => {}}
+          onApplySavedTeam={() => {}}
+          teamMemberOptions={[
+            { id: 'owner', name: 'Alex' },
+            { id: 'u2', name: 'Sam' },
+          ]}
+          wizardTeams={[]}
+          onAddTeam={() => {}}
+          onRemoveTeam={() => {}}
+          onTeamNameChange={() => {}}
+          onToggleTeamMember={() => {}}
         />
       </I18nextProvider>,
     )
 
-    expect(html).toContain('Set up scramble teams under Profile')
-    expect(html).not.toContain('automatically')
+    expect(html).toContain('Teams for this round')
+    expect(html).toContain('Your saved teams')
+    expect(html).toContain('Eagles: Alex, Sam')
+    expect(html).toContain('Use team')
+    expect(html).toContain('Add team')
   })
 })

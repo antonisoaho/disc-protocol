@@ -12,8 +12,15 @@ import {
   FreshRoundDraftValidationError,
   normalizeFreshCourseDraft,
 } from '@core/domain/freshRoundCourse'
+import {
+  normalizeProfileScrambleTeamPresets,
+  roundTeamsFromWizard,
+  type ProfileScrambleTeamPreset,
+} from '@core/domain/profileScrambleTeams'
+import type { RoundTeam } from '@core/domain/roundTeams'
 import { createRound } from '@core/domain/rounds'
 import { subscribeFollowers, subscribeFollowing } from '@core/users/follows'
+import { subscribeScrambleTeamPresets } from '@core/users/userProfile'
 import { subscribeUserDirectory, type UserDirectoryEntry } from '@core/users/userDirectory'
 import { translateUserError } from '@common/i18n/translateError'
 import { formatDraftIssues } from '@common/helpers/formatDraftIssues'
@@ -33,8 +40,18 @@ import {
 } from '@modules/rounds/components/StartRoundPlayersStep'
 import { StartRoundReviewStep } from '@modules/rounds/components/StartRoundReviewStep'
 import {
+  addWizardTeam,
+  applyAllSavedTeamsToWizard,
+  applyOneSavedTeamToWizard,
+  buildReviewTeamSummaries,
+  buildSavedTeamPresetSummaries,
+  removeWizardParticipantFromTeams,
+  removeWizardTeam,
   resolveInitialCourseMode,
   resolveInitialSavedCourseId,
+  syncWizardTeamsWithRoster,
+  toggleWizardTeamMember,
+  updateWizardTeamName,
   validateCourseStep,
   type CourseMode,
   type WizardStep,
@@ -81,6 +98,8 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
   const [freshCourseNameError, setFreshCourseNameError] = useState<string | null>(null)
   const [newRoundAnonymousNameError, setNewRoundAnonymousNameError] = useState<string | null>(null)
   const [newRoundAnonymousParticipants, setNewRoundAnonymousParticipants] = useState<AnonymousParticipant[]>([])
+  const [profileTeamPresets, setProfileTeamPresets] = useState<ProfileScrambleTeamPreset[]>([])
+  const [wizardTeams, setWizardTeams] = useState<RoundTeam[]>([])
   const [directoryEntries, setDirectoryEntries] = useState<UserDirectoryEntry[]>([])
   const [followingIds, setFollowingIds] = useState<string[]>([])
   const [followerIds, setFollowerIds] = useState<string[]>([])
@@ -156,6 +175,15 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
       (edges) => {
         setFollowerIds(Array.from(new Set(edges.map((edge) => edge.followerUid))))
       },
+      () => {},
+    )
+    return () => unsub()
+  }, [uid])
+
+  useEffect(() => {
+    const unsub = subscribeScrambleTeamPresets(
+      uid,
+      (presets) => setProfileTeamPresets(normalizeProfileScrambleTeamPresets(presets)),
       () => {},
     )
     return () => unsub()
@@ -270,6 +298,39 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
 
   const reviewPlayerNames = useMemo(() => rosterEntries.map((entry) => entry.name), [rosterEntries])
 
+  const participantIds = useMemo(
+    () =>
+      Array.from(new Set([uid, ...newRoundParticipants])).filter(
+        (participantId) => participantId.trim().length > 0,
+      ),
+    [newRoundParticipants, uid],
+  )
+
+  const rosterNameById = useMemo(
+    () => new Map(rosterEntries.map((entry) => [entry.id, entry.name])),
+    [rosterEntries],
+  )
+
+  const teamMemberOptions = useMemo(
+    () => rosterEntries.map((entry) => ({ id: entry.id, name: entry.name })),
+    [rosterEntries],
+  )
+
+  const savedTeamPresets = useMemo(
+    () => buildSavedTeamPresetSummaries(profileTeamPresets, participantIds, rosterNameById),
+    [participantIds, profileTeamPresets, rosterNameById],
+  )
+
+  const syncedWizardTeams = useMemo(
+    () => syncWizardTeamsWithRoster(participantIds, wizardTeams),
+    [participantIds, wizardTeams],
+  )
+
+  const reviewTeamSummaries = useMemo(
+    () => buildReviewTeamSummaries(syncedWizardTeams, rosterNameById),
+    [rosterNameById, syncedWizardTeams],
+  )
+
   const onAddNewRoundAnonymousParticipant = useCallback(() => {
     const anonymousInput = newRoundAnonymousNameInputRef.current
     if (!anonymousInput) {
@@ -301,16 +362,70 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
       )
     }
     setNewRoundParticipants((current) => current.filter((participantId) => participantId !== entry.id))
+    setWizardTeams((current) => removeWizardParticipantFromTeams(current, entry.id))
   }, [])
 
   const onToggleParticipant = useCallback((participantId: string) => {
     setNewRoundParticipants((current) => {
       if (current.includes(participantId)) {
+        setWizardTeams((teams) => removeWizardParticipantFromTeams(teams, participantId))
         return current.filter((id) => id !== participantId)
       }
       return [...current, participantId]
     })
   }, [])
+
+  const onApplyAllSavedTeams = useCallback(() => {
+    setWizardTeams(applyAllSavedTeamsToWizard(participantIds, profileTeamPresets))
+  }, [participantIds, profileTeamPresets])
+
+  const onApplySavedTeam = useCallback(
+    (presetId: string) => {
+      const preset = profileTeamPresets.find((entry) => entry.id === presetId)
+      if (!preset) {
+        return
+      }
+      setWizardTeams((current) => applyOneSavedTeamToWizard(participantIds, current, preset))
+    },
+    [participantIds, profileTeamPresets],
+  )
+
+  const onAddWizardTeam = useCallback(() => {
+    setWizardTeams((current) =>
+      syncWizardTeamsWithRoster(
+        participantIds,
+        addWizardTeam(current, t('profile.teams.defaultName', { number: current.length + 1 })),
+      ),
+    )
+  }, [participantIds, t])
+
+  const onRemoveWizardTeam = useCallback(
+    (teamId: string) => {
+      setWizardTeams((current) => syncWizardTeamsWithRoster(participantIds, removeWizardTeam(current, teamId)))
+    },
+    [participantIds],
+  )
+
+  const onWizardTeamNameChange = useCallback(
+    (teamId: string, name: string) => {
+      setWizardTeams((current) =>
+        syncWizardTeamsWithRoster(participantIds, updateWizardTeamName(current, teamId, name)),
+      )
+    },
+    [participantIds],
+  )
+
+  const onToggleWizardTeamMember = useCallback(
+    (teamId: string, memberParticipantId: string) => {
+      setWizardTeams((current) =>
+        syncWizardTeamsWithRoster(
+          participantIds,
+          toggleWizardTeamMember(current, teamId, memberParticipantId),
+        ),
+      )
+    },
+    [participantIds],
+  )
 
   const onCourseModeChange = useCallback(
     (mode: CourseMode) => {
@@ -391,10 +506,15 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
     setBusy(true)
     setError(null)
     try {
-      const participantIds = Array.from(new Set([uid, ...newRoundParticipants])).filter(
-        (participantId) => participantId.trim().length > 0,
-      )
       const anonymousParticipants = mergeAnonymousParticipants(participantIds, newRoundAnonymousParticipants)
+      const teams = roundTeamsFromWizard(participantIds, syncedWizardTeams)
+      const roundInput = {
+        ownerId: uid,
+        visibility: 'public' as const,
+        participantIds,
+        anonymousParticipants,
+        ...(teams.length > 0 ? { teams, scoringMode: 'scramble' as const } : {}),
+      }
       let id = ''
       if (courseMode === 'saved') {
         if (!selectedSavedCourse) {
@@ -410,15 +530,12 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
           return
         }
         id = await createRound({
-          ownerId: uid,
+          ...roundInput,
           courseSource: 'saved',
           courseId: selection.courseId,
           templateId: selection.templateId,
           holeCount: selection.holeCount,
           courseName: selectedSavedCourse.name,
-          visibility: 'public',
-          participantIds,
-          anonymousParticipants,
         })
       } else {
         const courseDraft = normalizeFreshCourseDraft({
@@ -429,13 +546,10 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
           })),
         })
         id = await createRound({
-          ownerId: uid,
+          ...roundInput,
           courseSource: 'fresh',
           courseDraft,
           holeCount: courseDraft.holes.length,
-          visibility: 'public',
-          participantIds,
-          anonymousParticipants,
         })
       }
       setFreshCourseNameError(null)
@@ -444,6 +558,7 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
       setNewRoundAnonymousNameError(null)
       setNewRoundAnonymousParticipants([])
       setNewRoundParticipants([uid])
+      setWizardTeams([])
       setFreshHoleChoice(18)
       setCourseMode('quick')
       setSelectedSavedCourseId(null)
@@ -470,9 +585,10 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
     freshCourseName,
     freshHoleChoice,
     newRoundAnonymousParticipants,
-    newRoundParticipants,
     onRoundCreated,
+    participantIds,
     selectedSavedCourse,
+    syncedWizardTeams,
     t,
     uid,
   ])
@@ -559,6 +675,15 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
           onAnonymousNameInvalid={(input) => setNewRoundAnonymousNameError(resolveAnonymousNameError(input))}
           onAddAnonymousParticipant={onAddNewRoundAnonymousParticipant}
           participantDisplayName={participantDisplayName}
+          savedTeamPresets={savedTeamPresets}
+          onApplyAllSavedTeams={onApplyAllSavedTeams}
+          onApplySavedTeam={onApplySavedTeam}
+          teamMemberOptions={teamMemberOptions}
+          wizardTeams={syncedWizardTeams}
+          onAddTeam={onAddWizardTeam}
+          onRemoveTeam={onRemoveWizardTeam}
+          onTeamNameChange={onWizardTeamNameChange}
+          onToggleTeamMember={onToggleWizardTeamMember}
           busy={busy}
         />
       ) : null}
@@ -570,7 +695,7 @@ export function StartRoundForm({ user, favoriteCourseIds, onRoundCreated }: Prop
           quickCourseName={freshCourseName}
           holeCount={freshHoleChoice}
           playerNames={reviewPlayerNames}
-          teamSummaries={[]}
+          teamSummaries={reviewTeamSummaries}
         />
       ) : null}
 
